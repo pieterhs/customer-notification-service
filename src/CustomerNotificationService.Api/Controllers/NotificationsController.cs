@@ -1,5 +1,5 @@
 using CustomerNotificationService.Application.Services;
-using CustomerNotificationService.Domain.Entities;
+using CustomerNotificationService.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CustomerNotificationService.Api.Controllers;
@@ -15,11 +15,18 @@ public class NotificationsController : ControllerBase
         _notificationService = notificationService;
     }
 
-    [HttpPost]
-    public IActionResult CreateNotification([FromBody] Notification notification)
+    [HttpPost("send")]
+    public async Task<IActionResult> Send([FromBody] SendNotificationRequest request, CancellationToken cancellationToken)
     {
-        // TODO: call service to enqueue notification
-        return Accepted(notification);
+        try
+        {
+            var notificationId = await _notificationService.SendAsync(request, cancellationToken);
+            return Accepted(new { notificationId });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpGet("{id}")]

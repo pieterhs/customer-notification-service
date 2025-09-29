@@ -1,4 +1,5 @@
 using CustomerNotificationService.Domain.Entities;
+using CustomerNotificationService.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace CustomerNotificationService.Infrastructure.Data;
@@ -18,7 +19,23 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        // TODO: configure entity relationships and constraints
-        modelBuilder.Entity<Template>().HasIndex(t => t.Key).IsUnique();
+        
+        // Template configuration
+        modelBuilder.Entity<Template>()
+            .HasIndex(t => t.Key)
+            .IsUnique();
+            
+        // Notification configuration
+        modelBuilder.Entity<Notification>()
+            .Property(e => e.Status)
+            .HasConversion<string>();
+            
+        modelBuilder.Entity<Notification>()
+            .Property(e => e.Channel)
+            .HasConversion<string>();
+            
+        // Queue item configuration
+        modelBuilder.Entity<NotificationQueueItem>()
+            .HasIndex(q => new { q.ReadyAt, q.JobStatus });
     }
 }

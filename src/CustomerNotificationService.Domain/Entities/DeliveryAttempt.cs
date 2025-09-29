@@ -7,4 +7,5 @@ public class DeliveryAttempt
     public DateTimeOffset AttemptedAt { get; set; }
     public bool Success { get; set; }
     public string? ResponseMessage { get; set; }
+    public string? ErrorMessage { get; set; }
 }

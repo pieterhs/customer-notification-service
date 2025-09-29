@@ -18,4 +18,23 @@ public class NotificationRepository : INotificationRepository
         await _db.Notifications.AddAsync(notification, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
     }
+    
+    public async Task<Notification> CreateNotificationAsync(Notification notification, CancellationToken cancellationToken = default)
+    {
+        notification.Id = Guid.NewGuid();
+        notification.CreatedAt = DateTimeOffset.UtcNow;
+        await _db.Notifications.AddAsync(notification, cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
+        return notification;
+    }
+    
+    public async Task<List<Notification>> GetCustomerHistoryAsync(string customerId, CancellationToken cancellationToken = default)
+    {
+        return await _db.Notifications
+            .AsNoTracking()
+            .Where(n => n.CustomerId == customerId)
+            .OrderByDescending(n => n.CreatedAt)
+            .Take(100)
+            .ToListAsync(cancellationToken);
+    }
 }

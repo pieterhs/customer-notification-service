@@ -3,7 +3,7 @@ using CustomerNotificationService.Application.Services;
 using CustomerNotificationService.Application.Interfaces;
 using CustomerNotificationService.Infrastructure.Repositories;
 using CustomerNotificationService.Infrastructure.Providers;
-using CustomerNotificationService.Infrastructure.Services;
+using CustomerNotificationService.Api.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
@@ -36,9 +36,7 @@ public class Startup
         // Repositories
         services.AddScoped<ITemplateRepository, TemplateRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
-
-    // Queue service (in-memory placeholder)
-    services.AddSingleton<IQueueService, InMemoryQueueService>();
+        services.AddScoped<IQueueRepository, QueueRepository>();
 
         // Providers
         services.AddScoped<INotificationProvider, MockEmailProvider>();
@@ -50,6 +48,23 @@ public class Startup
         services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "Customer Notification Service API", Version = "v1" });
+            c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+            {
+                Description = "API Key needed to access the endpoints. X-Api-Key: your-api-key",
+                In = ParameterLocation.Header,
+                Name = "X-Api-Key",
+                Type = SecuritySchemeType.ApiKey
+            });
+            c.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKey" }
+                    },
+                    Array.Empty<string>()
+                }
+            });
         });
     }
 
@@ -64,6 +79,8 @@ public class Startup
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "Customer Notification Service API v1");
             });
         }
+
+        app.UseMiddleware<ApiKeyMiddleware>();
 
         app.UseRouting();
 
