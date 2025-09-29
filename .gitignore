@@ -1,0 +1,80 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Ignore bin and obj folders everywhere
+**/bin/
+**/obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Rider
+.idea/
+*.iml
+
+# Visual Studio
+.vs/
+
+# Resharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuspec
+*.ncrunch*
+nunit-*.xml
+
+# Paket dependency manager
+.paket/
+paket-files/
+
+# Dotnet stuff
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.log
+*.vspscc
+*.vssscc
+
+# Publish output
+publish/
+wwwroot/lib/
+
+# Docker
+docker-compose.override.yml
+*.pid
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Test results
+TestResult*/
+*.coverage
+*.coveragexml
+
+# JetBrains Rider
+.idea/
+
+# Entity Framework
+Migrations/
+
+# Temporary files
+*.swp
+*.swo
