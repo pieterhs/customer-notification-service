@@ -1,0 +1,15 @@
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\obj\Debug\net8.0\CustomerNotificationService.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\obj\Debug\net8.0\CustomerNotificationService.Application.AssemblyInfoInputs.cache
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\obj\Debug\net8.0\CustomerNotificationService.Application.AssemblyInfo.cs
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\obj\Debug\net8.0\CustomerNotificationService.Application.csproj.CoreCompileInputs.cache
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\bin\Debug\net8.0\CustomerNotificationService.Application.deps.json
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\bin\Debug\net8.0\CustomerNotificationService.Application.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\bin\Debug\net8.0\CustomerNotificationService.Application.pdb
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\bin\Debug\net8.0\CustomerNotificationService.Domain.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\bin\Debug\net8.0\CustomerNotificationService.Domain.pdb
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\obj\Debug\net8.0\CustomerNotificationService.Application.csproj.AssemblyReference.cache
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\obj\Debug\net8.0\Customer.963E9A45.Up2Date
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\obj\Debug\net8.0\CustomerNotificationService.Application.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\obj\Debug\net8.0\refint\CustomerNotificationService.Application.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\obj\Debug\net8.0\CustomerNotificationService.Application.pdb
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Application\obj\Debug\net8.0\ref\CustomerNotificationService.Application.dll

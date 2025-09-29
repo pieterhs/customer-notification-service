@@ -1,0 +1,9 @@
+using CustomerNotificationService.Domain.Entities;
+
+namespace CustomerNotificationService.Application.Interfaces;
+
+public interface INotificationRepository
+{
+    Task<Notification?> GetAsync(Guid id, CancellationToken cancellationToken = default);
+    Task AddAsync(Notification notification, CancellationToken cancellationToken = default);
+}

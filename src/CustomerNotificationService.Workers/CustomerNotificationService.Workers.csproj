@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-CustomerNotificationService.Workers-39bdab0c-aae9-4cd8-a604-ccd13d2720c0</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CustomerNotificationService.Application\CustomerNotificationService.Application.csproj" />
+    <ProjectReference Include="..\CustomerNotificationService.Infrastructure\CustomerNotificationService.Infrastructure.csproj" />
+    <ProjectReference Include="..\CustomerNotificationService.Domain\CustomerNotificationService.Domain.csproj" />
+  </ItemGroup>
+</Project>

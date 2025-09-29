@@ -1,0 +1,11 @@
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Domain\bin\Debug\net8.0\CustomerNotificationService.Domain.deps.json
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Domain\bin\Debug\net8.0\CustomerNotificationService.Domain.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Domain\bin\Debug\net8.0\CustomerNotificationService.Domain.pdb
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Domain\obj\Debug\net8.0\CustomerNotificationService.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Domain\obj\Debug\net8.0\CustomerNotificationService.Domain.AssemblyInfoInputs.cache
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Domain\obj\Debug\net8.0\CustomerNotificationService.Domain.AssemblyInfo.cs
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Domain\obj\Debug\net8.0\CustomerNotificationService.Domain.csproj.CoreCompileInputs.cache
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Domain\obj\Debug\net8.0\CustomerNotificationService.Domain.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Domain\obj\Debug\net8.0\refint\CustomerNotificationService.Domain.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Domain\obj\Debug\net8.0\CustomerNotificationService.Domain.pdb
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Domain\obj\Debug\net8.0\ref\CustomerNotificationService.Domain.dll

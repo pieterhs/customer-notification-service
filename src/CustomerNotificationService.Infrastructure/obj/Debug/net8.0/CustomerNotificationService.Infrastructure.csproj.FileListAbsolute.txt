@@ -1,0 +1,17 @@
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\bin\Debug\net8.0\CustomerNotificationService.Infrastructure.deps.json
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\bin\Debug\net8.0\CustomerNotificationService.Infrastructure.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\bin\Debug\net8.0\CustomerNotificationService.Infrastructure.pdb
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\bin\Debug\net8.0\CustomerNotificationService.Application.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\bin\Debug\net8.0\CustomerNotificationService.Domain.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\bin\Debug\net8.0\CustomerNotificationService.Domain.pdb
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\bin\Debug\net8.0\CustomerNotificationService.Application.pdb
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\obj\Debug\net8.0\CustomerNotificationService.Infrastructure.csproj.AssemblyReference.cache
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\obj\Debug\net8.0\CustomerNotificationService.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\obj\Debug\net8.0\CustomerNotificationService.Infrastructure.AssemblyInfoInputs.cache
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\obj\Debug\net8.0\CustomerNotificationService.Infrastructure.AssemblyInfo.cs
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\obj\Debug\net8.0\CustomerNotificationService.Infrastructure.csproj.CoreCompileInputs.cache
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\obj\Debug\net8.0\Customer.41E8AEBF.Up2Date
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\obj\Debug\net8.0\CustomerNotificationService.Infrastructure.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\obj\Debug\net8.0\refint\CustomerNotificationService.Infrastructure.dll
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\obj\Debug\net8.0\CustomerNotificationService.Infrastructure.pdb
+C:\GitHub\customer-notification-service\src\CustomerNotificationService.Infrastructure\obj\Debug\net8.0\ref\CustomerNotificationService.Infrastructure.dll
