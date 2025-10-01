@@ -73,7 +73,7 @@ TestResult*/
 .idea/
 
 # Entity Framework
-Migrations/
+#Migrations/
 
 # Temporary files
 *.swp

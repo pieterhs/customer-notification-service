@@ -1,5 +1,8 @@
 using Serilog;
 using CustomerNotificationService.Api;
+using CustomerNotificationService.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +19,28 @@ var startup = new Startup(builder.Configuration);
 startup.ConfigureServices(builder.Services);
 
 var app = builder.Build();
+
+// Apply EF Core migrations on startup (configurable)
+var applyMigrations = builder.Configuration.GetValue<bool?>("ApplyMigrations") ?? true;
+if (applyMigrations)
+{
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Log.Information("Applying database migrations...");
+        db.Database.Migrate();
+        Log.Information("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "An error occurred while applying database migrations.");
+    }
+}
+else
+{
+    Log.Information("ApplyMigrations=false; skipping database migrations on startup.");
+}
 
 startup.Configure(app, app.Environment);
 

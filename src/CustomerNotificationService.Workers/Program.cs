@@ -4,6 +4,7 @@ using CustomerNotificationService.Application.Interfaces;
 using CustomerNotificationService.Infrastructure.Repositories;
 using CustomerNotificationService.Infrastructure.Providers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -32,4 +33,31 @@ builder.Services.AddHostedService<QueueWorker>();
 builder.Services.AddHostedService<SchedulerWorker>();
 
 var host = builder.Build();
+
+// Apply EF Core migrations on startup (configurable)
+var applyMigrations = builder.Configuration.GetValue<bool?>("ApplyMigrations") ?? true;
+if (applyMigrations)
+{
+    using var scope = host.Services.CreateScope();
+    var loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
+    var logger = loggerFactory.CreateLogger("Migrations");
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        logger.LogInformation("Applying database migrations (Workers)...");
+        db.Database.Migrate();
+        logger.LogInformation("Database migrations applied successfully (Workers).");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while applying database migrations (Workers).");
+    }
+}
+else
+{
+    using var scope = host.Services.CreateScope();
+    var loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
+    var logger = loggerFactory.CreateLogger("Migrations");
+    logger.LogInformation("ApplyMigrations=false; skipping database migrations on startup (Workers).");
+}
 host.Run();

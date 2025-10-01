@@ -9,6 +9,10 @@ services:
       - postgres
     environment:
       - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DOTNET_ENVIRONMENT=Development
+      - ApiKey=dev-api-key-12345
+      - ApplyMigrations=true
       - ConnectionStrings__Default=Host=postgres;Port=5432;Database=notify;Username=notify;Password=notify
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -18,6 +22,19 @@ services:
       start_period: 40s
     networks:
       - notification-network
+
+  #workers:
+  #  build:
+  #    context: .
+  #    dockerfile: src/CustomerNotificationService.Workers/Dockerfile
+  #  depends_on:
+  #    - postgres
+  #  environment:
+  #    - DOTNET_ENVIRONMENT=Development
+  #    - POSTGRES_CONNECTION=Host=postgres;Port=5432;Database=notify;Username=notify;Password=notify
+  #    - ApplyMigrations=true
+  #  networks:
+  #    - notification-network
 
   postgres:
     image: postgres:16
