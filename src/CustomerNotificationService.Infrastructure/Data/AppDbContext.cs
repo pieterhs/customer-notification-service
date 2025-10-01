@@ -37,5 +37,7 @@ public class AppDbContext : DbContext
         // Queue item configuration
         modelBuilder.Entity<NotificationQueueItem>()
             .HasIndex(q => new { q.ReadyAt, q.JobStatus });
+        modelBuilder.Entity<NotificationQueueItem>()
+            .HasIndex(q => new { q.NextAttemptAt, q.JobStatus });
     }
 }

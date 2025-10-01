@@ -6,7 +6,8 @@ public class NotificationQueueItem
     public Guid NotificationId { get; set; }
     public DateTimeOffset EnqueuedAt { get; set; }
     public DateTimeOffset ReadyAt { get; set; }
-    public string JobStatus { get; set; } = "Pending";
+    public string JobStatus { get; set; } = "Queued";
     public int AttemptCount { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
+    public DateTimeOffset? NextAttemptAt { get; set; }
 }

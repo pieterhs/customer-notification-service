@@ -43,7 +43,7 @@ public class NotificationServiceTests
     }
 
     [Fact]
-    public async Task SendAsync_Should_EnqueueJob()
+    public async Task SendAsync_ScheduledNotification_Should_NotEnqueue_And_SetScheduled()
     {
         // Arrange
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -56,7 +56,7 @@ public class NotificationServiceTests
         
         var service = new NotificationService(notificationRepo, queueRepo.Object);
 
-        var sendAt = DateTimeOffset.UtcNow.AddHours(1);
+    var sendAt = DateTimeOffset.UtcNow.AddHours(1);
         var request = new SendNotificationRequest(
             Recipient: "test@example.com",
             TemplateKey: "welcome",
@@ -74,12 +74,8 @@ public class NotificationServiceTests
         // Assert
         notificationId.Should().NotBeEmpty();
         
-        // Verify queue item was enqueued with correct ReadyAt time
-        queueRepo.Verify(q => q.EnqueueAsync(
-            It.Is<NotificationQueueItem>(item => 
-                item.NotificationId == notificationId && 
-                item.ReadyAt == sendAt), 
-            It.IsAny<CancellationToken>()), Times.Once);
+        // Verify queue item was NOT enqueued yet
+        queueRepo.Verify(q => q.EnqueueAsync(It.IsAny<NotificationQueueItem>(), It.IsAny<CancellationToken>()), Times.Never);
 
         // Verify notification was persisted
         var notification = await context.Notifications.FirstAsync(n => n.Id == notificationId);
@@ -88,6 +84,6 @@ public class NotificationServiceTests
         notification.PayloadJson.Should().Be("{\"name\":\"John\"}");
         notification.Channel.Should().Be(ChannelType.Email);
         notification.CustomerId.Should().Be("customer123");
-        notification.Status.Should().Be(NotificationStatus.Pending);
+        notification.Status.Should().Be(NotificationStatus.Scheduled);
     }
 }

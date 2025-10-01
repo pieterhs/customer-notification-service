@@ -4,6 +4,7 @@ using CustomerNotificationService.Application.Interfaces;
 using CustomerNotificationService.Infrastructure.Repositories;
 using CustomerNotificationService.Infrastructure.Providers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -22,6 +23,9 @@ builder.Services.AddScoped<IQueueRepository, QueueRepository>();
 builder.Services.AddScoped<INotificationProvider, MockEmailProvider>();
 builder.Services.AddScoped<INotificationProvider, MockSmsProvider>();
 builder.Services.AddScoped<INotificationProvider, MockPushProvider>();
+
+// Options
+builder.Services.Configure<QueueWorkerOptions>(builder.Configuration.GetSection("QueueWorker"));
 
 // Hosted services
 builder.Services.AddHostedService<QueueWorker>();

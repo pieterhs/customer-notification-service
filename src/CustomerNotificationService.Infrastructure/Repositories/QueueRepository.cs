@@ -2,6 +2,7 @@ using CustomerNotificationService.Application.Interfaces;
 using CustomerNotificationService.Domain.Entities;
 using CustomerNotificationService.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
 
 namespace CustomerNotificationService.Infrastructure.Repositories;
 
@@ -15,7 +16,7 @@ public class QueueRepository : IQueueRepository
     {
         item.Id = Guid.NewGuid();
         item.EnqueuedAt = DateTimeOffset.UtcNow;
-        item.JobStatus = "Pending";
+        item.JobStatus = "Queued";
         
         await _db.NotificationQueue.AddAsync(item, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
@@ -28,10 +29,23 @@ public class QueueRepository : IQueueRepository
         {
             using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             
-            var item = await _db.NotificationQueue
-                .Where(q => q.JobStatus == "Pending" && q.ReadyAt <= DateTimeOffset.UtcNow)
-                .OrderBy(q => q.ReadyAt)
-                .FirstOrDefaultAsync(cancellationToken);
+            var now = DateTimeOffset.UtcNow;
+            NotificationQueueItem? item;
+            if (_db.Database.IsNpgsql())
+            {
+                // Use explicit SQL with FOR UPDATE SKIP LOCKED for safe concurrent dequeues
+                        item = await _db.NotificationQueue
+                            .FromSqlInterpolated($@"SELECT * FROM ""NotificationQueueItem"" WHERE ""JobStatus"" = 'Queued' AND ""ReadyAt"" <= {now} AND (""NextAttemptAt"" IS NULL OR ""NextAttemptAt"" <= {now}) ORDER BY ""ReadyAt"" LIMIT 1 FOR UPDATE SKIP LOCKED")
+                    .AsTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+            else
+            {
+                item = await _db.NotificationQueue
+                    .Where(q => q.JobStatus == "Queued" && q.ReadyAt <= now && (q.NextAttemptAt == null || q.NextAttemptAt <= now))
+                    .OrderBy(q => q.ReadyAt)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
 
             if (item != null)
             {
@@ -46,8 +60,9 @@ public class QueueRepository : IQueueRepository
         catch (InvalidOperationException ex) when (ex.Message.Contains("Transactions are not supported"))
         {
             // Fallback for in-memory database
+            var now = DateTimeOffset.UtcNow;
             var item = await _db.NotificationQueue
-                .Where(q => q.JobStatus == "Pending" && q.ReadyAt <= DateTimeOffset.UtcNow)
+                .Where(q => q.JobStatus == "Queued" && q.ReadyAt <= now && (q.NextAttemptAt == null || q.NextAttemptAt <= now))
                 .OrderBy(q => q.ReadyAt)
                 .FirstOrDefaultAsync(cancellationToken);
 
@@ -73,21 +88,32 @@ public class QueueRepository : IQueueRepository
         }
     }
 
-    public async Task FailAsync(Guid queueItemId, int retryDelayMinutes, CancellationToken cancellationToken = default)
+    public async Task FailAsync(Guid queueItemId, int retryAfterSeconds, CancellationToken cancellationToken = default)
     {
         var item = await _db.NotificationQueue.FindAsync([queueItemId], cancellationToken);
         if (item != null)
         {
-            if (item.AttemptCount >= 3)
-            {
-                item.JobStatus = "Failed";
-                item.CompletedAt = DateTimeOffset.UtcNow;
-            }
-            else
-            {
-                item.JobStatus = "Pending";
-                item.ReadyAt = DateTimeOffset.UtcNow.AddMinutes(retryDelayMinutes);
-            }
+            item.JobStatus = "Queued";
+            item.NextAttemptAt = DateTimeOffset.UtcNow.AddSeconds(retryAfterSeconds);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    public async Task<List<NotificationQueueItem>> GetReadyJobsAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
+    {
+        return await _db.NotificationQueue
+            .Where(q => q.JobStatus == "Queued" && (q.NextAttemptAt == null || q.NextAttemptAt <= now))
+            .OrderBy(q => q.ReadyAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task MarkFailedAsync(Guid queueItemId, CancellationToken cancellationToken = default)
+    {
+        var item = await _db.NotificationQueue.FindAsync([queueItemId], cancellationToken);
+        if (item != null)
+        {
+            item.JobStatus = "Failed";
+            item.CompletedAt = DateTimeOffset.UtcNow;
             await _db.SaveChangesAsync(cancellationToken);
         }
     }

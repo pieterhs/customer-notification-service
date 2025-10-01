@@ -26,6 +26,11 @@ public class NotificationService : INotificationService
             throw new ArgumentException("Either TemplateKey or both Subject and Body must be provided", nameof(request));
 
         // Create notification
+        var now = DateTimeOffset.UtcNow;
+        var initialStatus = (request.SendAt.HasValue && request.SendAt.Value > now)
+            ? NotificationStatus.Scheduled
+            : NotificationStatus.Pending;
+
         var notification = new Notification
         {
             Recipient = request.Recipient,
@@ -36,20 +41,29 @@ public class NotificationService : INotificationService
             Channel = request.Channel,
             SendAt = request.SendAt,
             CustomerId = request.CustomerId,
-            Status = NotificationStatus.Pending
+            Status = initialStatus
         };
 
-        // Persist notification
-        await _notificationRepository.CreateNotificationAsync(notification, cancellationToken);
+    // Persist notification
+    await _notificationRepository.CreateNotificationAsync(notification, cancellationToken);
 
-        // Enqueue job
-        var queueItem = new NotificationQueueItem
+        // If scheduled for the future, do not enqueue yet
+        if (notification.Status == NotificationStatus.Scheduled)
         {
-            NotificationId = notification.Id,
-            ReadyAt = request.SendAt ?? DateTimeOffset.UtcNow
-        };
-
-        await _queueRepository.EnqueueAsync(queueItem, cancellationToken);
+            return notification.Id;
+        }
+        else
+        {
+            // Enqueue immediately
+            var queueItem = new NotificationQueueItem
+            {
+                NotificationId = notification.Id,
+                ReadyAt = now,
+                JobStatus = "Queued",
+                AttemptCount = 0
+            };
+            await _queueRepository.EnqueueAsync(queueItem, cancellationToken);
+        }
 
         return notification.Id;
     }

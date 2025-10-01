@@ -5,7 +5,7 @@ using CustomerNotificationService.Infrastructure.Data;
 using CustomerNotificationService.Infrastructure.Providers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Polly;
+using Microsoft.Extensions.Options;
 using Scriban;
 
 namespace CustomerNotificationService.Workers.HostedServices;
@@ -14,11 +14,13 @@ public class QueueWorker : BackgroundService
 {
     private readonly IServiceProvider _services;
     private readonly ILogger<QueueWorker> _logger;
+    private readonly QueueWorkerOptions _options;
 
-    public QueueWorker(IServiceProvider services, ILogger<QueueWorker> logger)
+    public QueueWorker(IServiceProvider services, ILogger<QueueWorker> logger, IOptions<QueueWorkerOptions> options)
     {
         _services = services;
         _logger = logger;
+        _options = options.Value;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -81,7 +83,8 @@ public class QueueWorker : BackgroundService
                 NotificationId = notification.Id,
                 AttemptedAt = DateTimeOffset.UtcNow,
                 Success = success,
-                ResponseMessage = success ? "Sent successfully" : "Send failed"
+                ResponseMessage = success ? "Sent successfully" : "Send failed",
+                Status = success ? "Success" : "Failed"
             };
             await dbContext.DeliveryAttempts.AddAsync(attempt, cancellationToken);
 
@@ -95,22 +98,34 @@ public class QueueWorker : BackgroundService
             }
             else
             {
-                notification.Status = NotificationStatus.Failed;
-                await dbContext.SaveChangesAsync(cancellationToken);
-                
-                // Exponential backoff: 2^attempt minutes
-                var retryDelay = (int)Math.Pow(2, queueItem.AttemptCount);
-                await queueRepository.FailAsync(queueItem.Id, retryDelay, cancellationToken);
-                _logger.LogWarning("Notification {NotificationId} failed, retry in {RetryDelay} minutes", 
-                    notification.Id, retryDelay);
+                // Retry with exponential backoff until max attempts, then mark failed
+                var attemptCount = queueItem.AttemptCount;
+                var backoff = _options.ComputeBackoffSeconds(attemptCount);
+                attempt.RetryAfterSeconds = backoff;
+
+                if (attemptCount >= _options.MaxAttempts)
+                {
+                    notification.Status = NotificationStatus.Failed;
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    await queueRepository.MarkFailedAsync(queueItem.Id, cancellationToken); // mark job done as failed terminally
+                    _logger.LogWarning("Notification {NotificationId} failed permanently after {Attempts} attempts", notification.Id, attemptCount);
+                }
+                else
+                {
+                    notification.Status = NotificationStatus.Pending;
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    await queueRepository.FailAsync(queueItem.Id, backoff, cancellationToken);
+                    _logger.LogWarning("Notification {NotificationId} failed, retry in {RetryDelay}s (attempt {Attempt})", 
+                        notification.Id, backoff, attemptCount);
+                }
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing notification {NotificationId}", queueItem.NotificationId);
-            
-            var retryDelay = (int)Math.Pow(2, queueItem.AttemptCount);
-            await queueRepository.FailAsync(queueItem.Id, retryDelay, cancellationToken);
+            var attemptCount = queueItem.AttemptCount;
+            var backoff = _options.ComputeBackoffSeconds(attemptCount);
+            await queueRepository.FailAsync(queueItem.Id, backoff, cancellationToken);
         }
     }
 
@@ -146,5 +161,22 @@ public class QueueWorker : BackgroundService
             notification.Subject = template.Subject;
             notification.Body = template.Body;
         }
+    }
+}
+
+public class QueueWorkerOptions
+{
+    public int MaxAttempts { get; set; } = 5;
+    public int BaseBackoffSeconds { get; set; } = 30;
+    public int MaxBackoffSeconds { get; set; } = 3600;
+}
+
+internal static class QueueWorkerBackoff
+{
+    public static int ComputeBackoffSeconds(this QueueWorkerOptions options, int attempt)
+    {
+        // attempt is 1-based in our code after increment; use attempt as exponent
+        var seconds = (int)Math.Min(Math.Pow(2, attempt) * options.BaseBackoffSeconds, options.MaxBackoffSeconds);
+        return Math.Max(options.BaseBackoffSeconds, seconds);
     }
 }
