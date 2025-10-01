@@ -65,6 +65,12 @@ namespace CustomerNotificationService.Infrastructure.Migrations
                     b.Property<string>("ResponseMessage")
                         .HasColumnType("text");
 
+                    b.Property<int?>("RetryAfterSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .HasColumnType("text");
+
                     b.Property<bool>("Success")
                         .HasColumnType("boolean");
 
@@ -139,6 +145,9 @@ namespace CustomerNotificationService.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("NotificationId")
                         .HasColumnType("uuid");
 
@@ -146,6 +155,8 @@ namespace CustomerNotificationService.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("NextAttemptAt", "JobStatus");
 
                     b.HasIndex("ReadyAt", "JobStatus");
 

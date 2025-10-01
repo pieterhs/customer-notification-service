@@ -23,18 +23,18 @@ services:
     networks:
       - notification-network
 
-  #workers:
-  #  build:
-  #    context: .
-  #    dockerfile: src/CustomerNotificationService.Workers/Dockerfile
-  #  depends_on:
-  #    - postgres
-  #  environment:
-  #    - DOTNET_ENVIRONMENT=Development
-  #    - POSTGRES_CONNECTION=Host=postgres;Port=5432;Database=notify;Username=notify;Password=notify
-  #    - ApplyMigrations=true
-  #  networks:
-  #    - notification-network
+  workers:
+    build:
+      context: .
+      dockerfile: src/CustomerNotificationService.Workers/Dockerfile
+    depends_on:
+      - postgres
+    environment:
+      - DOTNET_ENVIRONMENT=Development
+      - POSTGRES_CONNECTION=Host=postgres;Port=5432;Database=notify;Username=notify;Password=notify
+      - ApplyMigrations=true
+    networks:
+      - notification-network
 
   postgres:
     image: postgres:16

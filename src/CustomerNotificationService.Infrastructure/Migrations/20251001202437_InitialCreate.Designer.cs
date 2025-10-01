@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CustomerNotificationService.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250929203443_InitialCreate")]
+    [Migration("20251001202437_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -66,6 +66,12 @@ namespace CustomerNotificationService.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("ResponseMessage")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("RetryAfterSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
                         .HasColumnType("text");
 
                     b.Property<bool>("Success")
@@ -142,6 +148,9 @@ namespace CustomerNotificationService.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("NotificationId")
                         .HasColumnType("uuid");
 
@@ -149,6 +158,8 @@ namespace CustomerNotificationService.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("NextAttemptAt", "JobStatus");
 
                     b.HasIndex("ReadyAt", "JobStatus");
 

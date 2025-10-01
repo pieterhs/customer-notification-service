@@ -35,7 +35,9 @@ namespace CustomerNotificationService.Infrastructure.Migrations
                     AttemptedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     Success = table.Column<bool>(type: "boolean", nullable: false),
                     ResponseMessage = table.Column<string>(type: "text", nullable: true),
-                    ErrorMessage = table.Column<string>(type: "text", nullable: true)
+                    ErrorMessage = table.Column<string>(type: "text", nullable: true),
+                    Status = table.Column<string>(type: "text", nullable: true),
+                    RetryAfterSeconds = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -52,7 +54,8 @@ namespace CustomerNotificationService.Infrastructure.Migrations
                     ReadyAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     JobStatus = table.Column<string>(type: "text", nullable: false),
                     AttemptCount = table.Column<int>(type: "integer", nullable: false),
-                    CompletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    CompletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    NextAttemptAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -96,6 +99,11 @@ namespace CustomerNotificationService.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_Templates", x => x.Id);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_NotificationQueue_NextAttemptAt_JobStatus",
+                table: "NotificationQueue",
+                columns: new[] { "NextAttemptAt", "JobStatus" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_NotificationQueue_ReadyAt_JobStatus",
