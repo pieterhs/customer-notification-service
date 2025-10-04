@@ -30,8 +30,9 @@ public class Startup
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
 
-        // Application services
-        services.AddScoped<INotificationService, NotificationService>();
+    // Application services
+    services.AddScoped<INotificationService, NotificationService>();
+    services.AddScoped<Application.Interfaces.IAuditLogger, Infrastructure.Services.AuditLogger>();
 
         // Repositories
         services.AddScoped<ITemplateRepository, TemplateRepository>();

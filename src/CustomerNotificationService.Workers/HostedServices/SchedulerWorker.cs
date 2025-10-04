@@ -38,7 +38,8 @@ public class SchedulerWorker : BackgroundService
     private async Task ProcessScheduledNotificationsAsync(CancellationToken cancellationToken)
     {
         using var scope = _services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var auditLogger = scope.ServiceProvider.GetRequiredService<CustomerNotificationService.Application.Interfaces.IAuditLogger>();
         
         var now = DateTimeOffset.UtcNow;
         
@@ -83,12 +84,14 @@ public class SchedulerWorker : BackgroundService
                     };
 
                     await dbContext.NotificationQueue.AddAsync(queueItem, cancellationToken);
-                    
+
                     // Update notification status
                     notification.Status = NotificationStatus.Pending;
-                    
+
                     promotedNotificationIds.Add(notification.Id);
-                    
+
+                    await auditLogger.LogAsync("NotificationEnqueued", notification.Id, null);
+
                     _logger.LogDebug("Promoted scheduled notification {NotificationId} to queue (SendAt: {SendAt})", 
                         notification.Id, notification.SendAt);
                 }

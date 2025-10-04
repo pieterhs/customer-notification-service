@@ -19,17 +19,17 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        
+
         // Template configuration
         modelBuilder.Entity<Template>()
             .HasIndex(t => t.Key)
             .IsUnique();
-            
+
         // Notification configuration
         modelBuilder.Entity<Notification>()
             .Property(e => e.Status)
             .HasConversion<string>();
-            
+
         modelBuilder.Entity<Notification>()
             .Property(e => e.Channel)
             .HasConversion<string>();
@@ -41,5 +41,9 @@ public class AppDbContext : DbContext
             .HasIndex(q => new { q.ReadyAt, q.JobStatus });
         modelBuilder.Entity<NotificationQueueItem>()
             .HasIndex(q => new { q.NextAttemptAt, q.JobStatus });
+
+        // AuditLog configuration
+        modelBuilder.Entity<AuditLog>()
+            .ToTable("AuditLogs");
     }
 }

@@ -8,11 +8,13 @@ public class NotificationService : INotificationService
 {
     private readonly INotificationRepository _notificationRepository;
     private readonly IQueueRepository _queueRepository;
+    private readonly IAuditLogger _auditLogger;
 
-    public NotificationService(INotificationRepository notificationRepository, IQueueRepository queueRepository)
+    public NotificationService(INotificationRepository notificationRepository, IQueueRepository queueRepository, IAuditLogger auditLogger)
     {
         _notificationRepository = notificationRepository;
         _queueRepository = queueRepository;
+        _auditLogger = auditLogger;
     }
 
     public async Task<Guid> SendAsync(SendNotificationRequest request, CancellationToken cancellationToken = default)
@@ -46,6 +48,7 @@ public class NotificationService : INotificationService
 
     // Persist notification
     await _notificationRepository.CreateNotificationAsync(notification, cancellationToken);
+    await _auditLogger.LogAsync("NotificationCreated", notification.Id, null);
 
         // If scheduled for the future, do not enqueue yet
         if (notification.Status == NotificationStatus.Scheduled)

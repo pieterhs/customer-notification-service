@@ -49,7 +49,8 @@ public class QueueWorker : BackgroundService
         using var scope = _services.CreateScope();
         var queueRepository = scope.ServiceProvider.GetRequiredService<IQueueRepository>();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var providers = scope.ServiceProvider.GetServices<INotificationProvider>();
+    var providers = scope.ServiceProvider.GetServices<INotificationProvider>();
+    var auditLogger = scope.ServiceProvider.GetRequiredService<IAuditLogger>();
 
         // Dequeue only ready items (Status='Queued' and NextAttemptAt check)
         var queueItem = await DequeueReadyItemAsync(dbContext, cancellationToken);
@@ -82,7 +83,7 @@ public class QueueWorker : BackgroundService
             if (provider == null)
             {
                 _logger.LogError("No provider found for channel {Channel}, marking as failed", notification.Channel);
-                await HandleDeliveryFailureAsync(dbContext, queueItem, notification, "No provider found for channel", cancellationToken);
+                await HandleDeliveryFailureAsync(dbContext, queueItem, notification, auditLogger, "No provider found for channel", cancellationToken);
                 return;
             }
 
@@ -91,17 +92,17 @@ public class QueueWorker : BackgroundService
             
             if (deliverySuccess)
             {
-                await HandleDeliverySuccessAsync(dbContext, queueItem, notification, cancellationToken);
+                await HandleDeliverySuccessAsync(dbContext, queueItem, notification, auditLogger, cancellationToken);
             }
             else
             {
-                await HandleDeliveryFailureAsync(dbContext, queueItem, notification, "Provider delivery failed", cancellationToken);
+                await HandleDeliveryFailureAsync(dbContext, queueItem, notification, auditLogger, "Provider delivery failed", cancellationToken);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error processing notification {NotificationId}", queueItem.NotificationId);
-            await HandleDeliveryFailureAsync(dbContext, queueItem, null, $"Exception: {ex.Message}", cancellationToken);
+            await HandleDeliveryFailureAsync(dbContext, queueItem, null, auditLogger, $"Exception: {ex.Message}", cancellationToken);
         }
     }
 
@@ -159,18 +160,18 @@ public class QueueWorker : BackgroundService
         }
     }
 
-    private async Task HandleDeliverySuccessAsync(AppDbContext dbContext, NotificationQueueItem queueItem, Notification notification, CancellationToken cancellationToken)
+    private async Task HandleDeliverySuccessAsync(AppDbContext dbContext, NotificationQueueItem queueItem, Notification notification, IAuditLogger auditLogger, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Notification {NotificationId} delivered successfully", notification.Id);
 
         // Update notification status
         notification.Status = NotificationStatus.Sent;
         notification.SentAt = DateTimeOffset.UtcNow;
-        
+
         // Mark queue item as processed
         queueItem.JobStatus = "Processed";
         queueItem.CompletedAt = DateTimeOffset.UtcNow;
-        
+
         // Log successful delivery attempt
         var deliveryAttempt = new DeliveryAttempt
         {
@@ -181,12 +182,13 @@ public class QueueWorker : BackgroundService
             Status = "Success",
             ResponseMessage = "Delivered successfully"
         };
-        
-        dbContext.DeliveryAttempts.Add(deliveryAttempt);
-        await dbContext.SaveChangesAsync(cancellationToken);
+
+    dbContext.DeliveryAttempts.Add(deliveryAttempt);
+    await dbContext.SaveChangesAsync(cancellationToken);
+    await auditLogger.LogAsync("NotificationSent", notification.Id, null);
     }
 
-    private async Task HandleDeliveryFailureAsync(AppDbContext dbContext, NotificationQueueItem queueItem, Notification? notification, string errorMessage, CancellationToken cancellationToken)
+    private async Task HandleDeliveryFailureAsync(AppDbContext dbContext, NotificationQueueItem queueItem, Notification? notification, IAuditLogger auditLogger, string errorMessage, CancellationToken cancellationToken)
     {
         var attemptCount = queueItem.AttemptCount;
         var now = DateTimeOffset.UtcNow;
@@ -206,17 +208,19 @@ public class QueueWorker : BackgroundService
             // Exceeded max attempts - mark as permanently failed
             _logger.LogWarning("Notification {NotificationId} failed permanently after {AttemptCount} attempts", 
                 queueItem.NotificationId, attemptCount);
-                
+
             if (notification != null)
             {
                 notification.Status = NotificationStatus.Failed;
             }
-            
+
             queueItem.JobStatus = "Failed";
             queueItem.CompletedAt = now;
-            
+
             deliveryAttempt.Status = "Failed";
             deliveryAttempt.ResponseMessage = $"Failed permanently after {attemptCount} attempts";
+
+            await auditLogger.LogAsync("NotificationFailed", queueItem.NotificationId, errorMessage);
         }
         else
         {

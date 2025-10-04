@@ -4,6 +4,7 @@ using CustomerNotificationService.Application.Interfaces;
 using CustomerNotificationService.Infrastructure.Repositories;
 using CustomerNotificationService.Infrastructure.Providers;
 using CustomerNotificationService.Workers.Configuration;
+using CustomerNotificationService.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -25,6 +26,9 @@ builder.Services.AddScoped<IQueueRepository, QueueRepository>();
 builder.Services.AddScoped<INotificationProvider, MockEmailProvider>();
 builder.Services.AddScoped<INotificationProvider, MockSmsProvider>();
 builder.Services.AddScoped<INotificationProvider, MockPushProvider>();
+
+// Services
+builder.Services.AddScoped<IAuditLogger, AuditLogger>();
 
 // Options
 builder.Services.Configure<RetryPolicyOptions>(builder.Configuration.GetSection("RetryPolicy"));
