@@ -14,6 +14,7 @@ services:
       - ApiKey=dev-api-key-12345
       - ApplyMigrations=true
       - ConnectionStrings__Default=Host=postgres;Port=5432;Database=notify;Username=notify;Password=notify
+      - TZ=Africa/Johannesburg
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -33,6 +34,7 @@ services:
       - DOTNET_ENVIRONMENT=Development
       - POSTGRES_CONNECTION=Host=postgres;Port=5432;Database=notify;Username=notify;Password=notify
       - ApplyMigrations=true
+      - TZ=Africa/Johannesburg
     networks:
       - notification-network
 

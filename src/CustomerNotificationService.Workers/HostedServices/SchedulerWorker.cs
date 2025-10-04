@@ -42,58 +42,78 @@ public class SchedulerWorker : BackgroundService
         
         var now = DateTimeOffset.UtcNow;
         
-        // Find notifications that are scheduled and due
-        var dueNotifications = await dbContext.Notifications
-            .Where(n => n.Status == NotificationStatus.Scheduled && 
-                       n.SendAt != null && 
-                       n.SendAt <= now)
-            .ToListAsync(cancellationToken);
-
-        if (dueNotifications.Count == 0)
-        {
-            _logger.LogDebug("No scheduled notifications due for processing");
-            return;
-        }
-
-        _logger.LogInformation("Found {Count} scheduled notifications due for processing", dueNotifications.Count);
-
-        foreach (var notification in dueNotifications)
-        {
-            try
-            {
-                // Create queue item
-                var queueItem = new NotificationQueueItem
-                {
-                    Id = Guid.NewGuid(),
-                    NotificationId = notification.Id,
-                    EnqueuedAt = now,
-                    ReadyAt = now,
-                    JobStatus = "Queued",
-                    AttemptCount = 0,
-                    NextAttemptAt = null
-                };
-
-                dbContext.NotificationQueue.Add(queueItem);
-                
-                // Update notification status
-                notification.Status = NotificationStatus.Pending;
-                
-                _logger.LogDebug("Enqueued scheduled notification {NotificationId} for processing", notification.Id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error enqueuing scheduled notification {NotificationId}", notification.Id);
-            }
-        }
-
         try
         {
+            // Use transaction for consistency
+            using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            
+            // Find notifications that are scheduled and due, but not already enqueued
+            var eligibleNotifications = await dbContext.Notifications
+                .Where(n => n.Status == NotificationStatus.Scheduled && 
+                           n.SendAt != null && 
+                           n.SendAt <= now &&
+                           !dbContext.NotificationQueue.Any(q => q.NotificationId == n.Id))
+                .ToListAsync(cancellationToken);
+
+            if (eligibleNotifications.Count == 0)
+            {
+                _logger.LogDebug("No eligible scheduled notifications found for promotion at {ProcessTime}", now);
+                await transaction.CommitAsync(cancellationToken);
+                return;
+            }
+
+            _logger.LogInformation("Found {Count} eligible scheduled notifications for promotion", eligibleNotifications.Count);
+
+            var promotedNotificationIds = new List<Guid>();
+
+            foreach (var notification in eligibleNotifications)
+            {
+                try
+                {
+                    // Create queue item
+                    var queueItem = new NotificationQueueItem
+                    {
+                        Id = Guid.NewGuid(),
+                        NotificationId = notification.Id,
+                        EnqueuedAt = now,
+                        ReadyAt = now,
+                        JobStatus = "Queued",
+                        AttemptCount = 0,
+                        NextAttemptAt = null
+                    };
+
+                    await dbContext.NotificationQueue.AddAsync(queueItem, cancellationToken);
+                    
+                    // Update notification status
+                    notification.Status = NotificationStatus.Pending;
+                    
+                    promotedNotificationIds.Add(notification.Id);
+                    
+                    _logger.LogDebug("Promoted scheduled notification {NotificationId} to queue (SendAt: {SendAt})", 
+                        notification.Id, notification.SendAt);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error promoting scheduled notification {NotificationId}", notification.Id);
+                    // Continue with other notifications rather than failing the entire batch
+                }
+            }
+
+            // Save all changes in a single transaction
             await dbContext.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Successfully enqueued {Count} scheduled notifications", dueNotifications.Count);
+            await transaction.CommitAsync(cancellationToken);
+            
+            if (promotedNotificationIds.Count > 0)
+            {
+                _logger.LogInformation("Successfully promoted {Count} scheduled notifications to queue: [{NotificationIds}]", 
+                    promotedNotificationIds.Count, string.Join(", ", promotedNotificationIds));
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error saving scheduled notification changes to database");
+            _logger.LogError(ex, "Error processing scheduled notifications batch at {ProcessTime}", now);
+            // Transaction will be automatically rolled back
+            throw;
         }
     }
 }
