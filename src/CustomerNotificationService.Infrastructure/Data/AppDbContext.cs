@@ -33,8 +33,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Notification>()
             .Property(e => e.Channel)
             .HasConversion<string>();
-            
+
         // Queue item configuration
+        modelBuilder.Entity<NotificationQueueItem>()
+            .ToTable("NotificationQueue");
         modelBuilder.Entity<NotificationQueueItem>()
             .HasIndex(q => new { q.ReadyAt, q.JobStatus });
         modelBuilder.Entity<NotificationQueueItem>()

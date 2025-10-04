@@ -35,7 +35,7 @@ public class QueueRepository : IQueueRepository
             {
                 // Use explicit SQL with FOR UPDATE SKIP LOCKED for safe concurrent dequeues
                         item = await _db.NotificationQueue
-                            .FromSqlInterpolated($@"SELECT * FROM ""NotificationQueueItem"" WHERE ""JobStatus"" = 'Queued' AND ""ReadyAt"" <= {now} AND (""NextAttemptAt"" IS NULL OR ""NextAttemptAt"" <= {now}) ORDER BY ""ReadyAt"" LIMIT 1 FOR UPDATE SKIP LOCKED")
+                            .FromSqlInterpolated($@"SELECT * FROM ""NotificationQueue"" WHERE ""JobStatus"" = 'Queued' AND ""ReadyAt"" <= {now} AND (""NextAttemptAt"" IS NULL OR ""NextAttemptAt"" <= {now}) ORDER BY ""ReadyAt"" LIMIT 1 FOR UPDATE SKIP LOCKED")
                     .AsTracking()
                     .FirstOrDefaultAsync(cancellationToken);
             }
