@@ -3,6 +3,7 @@ using CustomerNotificationService.Infrastructure.Data;
 using CustomerNotificationService.Application.Interfaces;
 using CustomerNotificationService.Infrastructure.Repositories;
 using CustomerNotificationService.Infrastructure.Providers;
+using CustomerNotificationService.Workers.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -26,7 +27,7 @@ builder.Services.AddScoped<INotificationProvider, MockSmsProvider>();
 builder.Services.AddScoped<INotificationProvider, MockPushProvider>();
 
 // Options
-builder.Services.Configure<QueueWorkerOptions>(builder.Configuration.GetSection("QueueWorker"));
+builder.Services.Configure<RetryPolicyOptions>(builder.Configuration.GetSection("RetryPolicy"));
 
 // Hosted services
 builder.Services.AddHostedService<QueueWorker>();

@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\CustomerNotificationService.Application\CustomerNotificationService.Application.csproj" />
     <ProjectReference Include="..\..\src\CustomerNotificationService.Domain\CustomerNotificationService.Domain.csproj" />
     <ProjectReference Include="..\..\src\CustomerNotificationService.Infrastructure\CustomerNotificationService.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\CustomerNotificationService.Workers\CustomerNotificationService.Workers.csproj" />
   </ItemGroup>
 
 </Project>

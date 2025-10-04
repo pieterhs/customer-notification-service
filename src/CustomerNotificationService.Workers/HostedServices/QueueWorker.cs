@@ -3,6 +3,7 @@ using CustomerNotificationService.Domain.Entities;
 using CustomerNotificationService.Domain.Enums;
 using CustomerNotificationService.Infrastructure.Data;
 using CustomerNotificationService.Infrastructure.Providers;
+using CustomerNotificationService.Workers.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -14,24 +15,25 @@ public class QueueWorker : BackgroundService
 {
     private readonly IServiceProvider _services;
     private readonly ILogger<QueueWorker> _logger;
-    private readonly QueueWorkerOptions _options;
+    private readonly RetryPolicyOptions _retryPolicy;
 
-    public QueueWorker(IServiceProvider services, ILogger<QueueWorker> logger, IOptions<QueueWorkerOptions> options)
+    public QueueWorker(IServiceProvider services, ILogger<QueueWorker> logger, IOptions<RetryPolicyOptions> retryPolicy)
     {
         _services = services;
         _logger = logger;
-        _options = options.Value;
+        _retryPolicy = retryPolicy.Value;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("QueueWorker started");
+        _logger.LogInformation("QueueWorker started with retry policy: MaxAttempts={MaxAttempts}, BaseBackoff={BaseBackoff}s, MaxBackoff={MaxBackoff}s", 
+            _retryPolicy.MaxAttempts, _retryPolicy.BaseBackoffSeconds, _retryPolicy.MaxBackoffSeconds);
         
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                await ProcessQueueItems(stoppingToken);
+                await ProcessQueueItemsAsync(stoppingToken);
             }
             catch (Exception ex)
             {
@@ -42,15 +44,23 @@ public class QueueWorker : BackgroundService
         }
     }
 
-    private async Task ProcessQueueItems(CancellationToken cancellationToken)
+    private async Task ProcessQueueItemsAsync(CancellationToken cancellationToken)
     {
         using var scope = _services.CreateScope();
         var queueRepository = scope.ServiceProvider.GetRequiredService<IQueueRepository>();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var providers = scope.ServiceProvider.GetServices<INotificationProvider>();
 
-        var queueItem = await queueRepository.DequeueAsync(cancellationToken);
-        if (queueItem == null) return;
+        // Dequeue only ready items (Status='Queued' and NextAttemptAt check)
+        var queueItem = await DequeueReadyItemAsync(dbContext, cancellationToken);
+        if (queueItem == null) 
+        {
+            _logger.LogDebug("No ready queue items to process");
+            return;
+        }
+
+        _logger.LogDebug("Processing queue item {QueueItemId} for notification {NotificationId} (attempt {AttemptCount})", 
+            queueItem.Id, queueItem.NotificationId, queueItem.AttemptCount);
 
         try
         {
@@ -59,77 +69,184 @@ public class QueueWorker : BackgroundService
                 
             if (notification == null)
             {
-                _logger.LogWarning("Notification {NotificationId} not found", queueItem.NotificationId);
-                await queueRepository.CompleteAsync(queueItem.Id, cancellationToken);
+                _logger.LogWarning("Notification {NotificationId} not found, marking queue item as processed", queueItem.NotificationId);
+                await MarkQueueItemProcessedAsync(dbContext, queueItem, cancellationToken);
                 return;
             }
 
             // Render template if needed
-            await RenderTemplate(notification, dbContext, cancellationToken);
+            await RenderTemplateAsync(notification, dbContext, cancellationToken);
 
-            // Send notification
+            // Find and invoke provider
             var provider = providers.FirstOrDefault(p => p.Channel.Equals(notification.Channel.ToString(), StringComparison.OrdinalIgnoreCase));
             if (provider == null)
             {
-                throw new InvalidOperationException($"No provider found for channel {notification.Channel}");
+                _logger.LogError("No provider found for channel {Channel}, marking as failed", notification.Channel);
+                await HandleDeliveryFailureAsync(dbContext, queueItem, notification, "No provider found for channel", cancellationToken);
+                return;
             }
 
-            var success = await provider.SendAsync(notification, cancellationToken);
-
-            // Record delivery attempt
-            var attempt = new DeliveryAttempt
+            // Attempt delivery
+            var deliverySuccess = await provider.SendAsync(notification, cancellationToken);
+            
+            if (deliverySuccess)
             {
-                Id = Guid.NewGuid(),
-                NotificationId = notification.Id,
-                AttemptedAt = DateTimeOffset.UtcNow,
-                Success = success,
-                ResponseMessage = success ? "Sent successfully" : "Send failed",
-                Status = success ? "Success" : "Failed"
-            };
-            await dbContext.DeliveryAttempts.AddAsync(attempt, cancellationToken);
-
-            if (success)
-            {
-                notification.Status = NotificationStatus.Sent;
-                notification.SentAt = DateTimeOffset.UtcNow;
-                await dbContext.SaveChangesAsync(cancellationToken);
-                await queueRepository.CompleteAsync(queueItem.Id, cancellationToken);
-                _logger.LogInformation("Notification {NotificationId} sent successfully", notification.Id);
+                await HandleDeliverySuccessAsync(dbContext, queueItem, notification, cancellationToken);
             }
             else
             {
-                // Retry with exponential backoff until max attempts, then mark failed
-                var attemptCount = queueItem.AttemptCount;
-                var backoff = _options.ComputeBackoffSeconds(attemptCount);
-                attempt.RetryAfterSeconds = backoff;
-
-                if (attemptCount >= _options.MaxAttempts)
-                {
-                    notification.Status = NotificationStatus.Failed;
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                    await queueRepository.MarkFailedAsync(queueItem.Id, cancellationToken); // mark job done as failed terminally
-                    _logger.LogWarning("Notification {NotificationId} failed permanently after {Attempts} attempts", notification.Id, attemptCount);
-                }
-                else
-                {
-                    notification.Status = NotificationStatus.Pending;
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                    await queueRepository.FailAsync(queueItem.Id, backoff, cancellationToken);
-                    _logger.LogWarning("Notification {NotificationId} failed, retry in {RetryDelay}s (attempt {Attempt})", 
-                        notification.Id, backoff, attemptCount);
-                }
+                await HandleDeliveryFailureAsync(dbContext, queueItem, notification, "Provider delivery failed", cancellationToken);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing notification {NotificationId}", queueItem.NotificationId);
-            var attemptCount = queueItem.AttemptCount;
-            var backoff = _options.ComputeBackoffSeconds(attemptCount);
-            await queueRepository.FailAsync(queueItem.Id, backoff, cancellationToken);
+            _logger.LogError(ex, "Unexpected error processing notification {NotificationId}", queueItem.NotificationId);
+            await HandleDeliveryFailureAsync(dbContext, queueItem, null, $"Exception: {ex.Message}", cancellationToken);
         }
     }
 
-    private async Task RenderTemplate(Notification notification, AppDbContext dbContext, CancellationToken cancellationToken)
+    private async Task<NotificationQueueItem?> DequeueReadyItemAsync(AppDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        
+        try
+        {
+            using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            
+            NotificationQueueItem? item;
+            if (dbContext.Database.IsNpgsql())
+            {
+                // Use FOR UPDATE SKIP LOCKED for safe concurrent dequeuing
+                item = await dbContext.NotificationQueue
+                    .FromSqlInterpolated($@"SELECT * FROM ""NotificationQueue"" WHERE ""JobStatus"" = 'Queued' AND ""ReadyAt"" <= {now} AND (""NextAttemptAt"" IS NULL OR ""NextAttemptAt"" <= {now}) ORDER BY ""ReadyAt"" LIMIT 1 FOR UPDATE SKIP LOCKED")
+                    .AsTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+            else
+            {
+                item = await dbContext.NotificationQueue
+                    .Where(q => q.JobStatus == "Queued" && q.ReadyAt <= now && (q.NextAttemptAt == null || q.NextAttemptAt <= now))
+                    .OrderBy(q => q.ReadyAt)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            if (item != null)
+            {
+                item.JobStatus = "Processing";
+                item.AttemptCount++;
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return item;
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Transactions are not supported"))
+        {
+            // Fallback for in-memory database
+            var item = await dbContext.NotificationQueue
+                .Where(q => q.JobStatus == "Queued" && q.ReadyAt <= now && (q.NextAttemptAt == null || q.NextAttemptAt <= now))
+                .OrderBy(q => q.ReadyAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (item != null)
+            {
+                item.JobStatus = "Processing";
+                item.AttemptCount++;
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            return item;
+        }
+    }
+
+    private async Task HandleDeliverySuccessAsync(AppDbContext dbContext, NotificationQueueItem queueItem, Notification notification, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Notification {NotificationId} delivered successfully", notification.Id);
+
+        // Update notification status
+        notification.Status = NotificationStatus.Sent;
+        notification.SentAt = DateTimeOffset.UtcNow;
+        
+        // Mark queue item as processed
+        queueItem.JobStatus = "Processed";
+        queueItem.CompletedAt = DateTimeOffset.UtcNow;
+        
+        // Log successful delivery attempt
+        var deliveryAttempt = new DeliveryAttempt
+        {
+            Id = Guid.NewGuid(),
+            NotificationId = notification.Id,
+            AttemptedAt = DateTimeOffset.UtcNow,
+            Success = true,
+            Status = "Success",
+            ResponseMessage = "Delivered successfully"
+        };
+        
+        dbContext.DeliveryAttempts.Add(deliveryAttempt);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task HandleDeliveryFailureAsync(AppDbContext dbContext, NotificationQueueItem queueItem, Notification? notification, string errorMessage, CancellationToken cancellationToken)
+    {
+        var attemptCount = queueItem.AttemptCount;
+        var now = DateTimeOffset.UtcNow;
+        
+        // Log delivery attempt
+        var deliveryAttempt = new DeliveryAttempt
+        {
+            Id = Guid.NewGuid(),
+            NotificationId = queueItem.NotificationId,
+            AttemptedAt = now,
+            Success = false,
+            ErrorMessage = errorMessage
+        };
+
+        if (attemptCount >= _retryPolicy.MaxAttempts)
+        {
+            // Exceeded max attempts - mark as permanently failed
+            _logger.LogWarning("Notification {NotificationId} failed permanently after {AttemptCount} attempts", 
+                queueItem.NotificationId, attemptCount);
+                
+            if (notification != null)
+            {
+                notification.Status = NotificationStatus.Failed;
+            }
+            
+            queueItem.JobStatus = "Failed";
+            queueItem.CompletedAt = now;
+            
+            deliveryAttempt.Status = "Failed";
+            deliveryAttempt.ResponseMessage = $"Failed permanently after {attemptCount} attempts";
+        }
+        else
+        {
+            // Calculate backoff and retry
+            var backoffTime = _retryPolicy.CalculateBackoff(attemptCount);
+            var nextAttempt = now.Add(backoffTime);
+            
+            _logger.LogWarning("Notification {NotificationId} delivery failed (attempt {AttemptCount}/{MaxAttempts}), retrying in {BackoffSeconds}s", 
+                queueItem.NotificationId, attemptCount, _retryPolicy.MaxAttempts, backoffTime.TotalSeconds);
+            
+            queueItem.JobStatus = "Queued";
+            queueItem.NextAttemptAt = nextAttempt;
+            
+            deliveryAttempt.Status = "Failed (retry)";
+            deliveryAttempt.RetryAfterSeconds = (int)backoffTime.TotalSeconds;
+            deliveryAttempt.ResponseMessage = $"Failed, retrying after {backoffTime.TotalSeconds}s";
+        }
+
+        dbContext.DeliveryAttempts.Add(deliveryAttempt);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task MarkQueueItemProcessedAsync(AppDbContext dbContext, NotificationQueueItem queueItem, CancellationToken cancellationToken)
+    {
+        queueItem.JobStatus = "Processed";
+        queueItem.CompletedAt = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task RenderTemplateAsync(Notification notification, AppDbContext dbContext, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(notification.TemplateKey)) return;
 
@@ -139,7 +256,8 @@ public class QueueWorker : BackgroundService
 
         if (template == null)
         {
-            _logger.LogWarning("Template {TemplateKey} not found", notification.TemplateKey);
+            _logger.LogWarning("Template {TemplateKey} not found for notification {NotificationId}", 
+                notification.TemplateKey, notification.Id);
             return;
         }
 
@@ -154,29 +272,16 @@ public class QueueWorker : BackgroundService
 
             notification.Subject = await subjectTemplate.RenderAsync(payload);
             notification.Body = await bodyTemplate.RenderAsync(payload);
+            
+            _logger.LogDebug("Template {TemplateKey} rendered successfully for notification {NotificationId}", 
+                notification.TemplateKey, notification.Id);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error rendering template {TemplateKey}", notification.TemplateKey);
+            _logger.LogError(ex, "Error rendering template {TemplateKey} for notification {NotificationId}", 
+                notification.TemplateKey, notification.Id);
             notification.Subject = template.Subject;
             notification.Body = template.Body;
         }
-    }
-}
-
-public class QueueWorkerOptions
-{
-    public int MaxAttempts { get; set; } = 5;
-    public int BaseBackoffSeconds { get; set; } = 30;
-    public int MaxBackoffSeconds { get; set; } = 3600;
-}
-
-internal static class QueueWorkerBackoff
-{
-    public static int ComputeBackoffSeconds(this QueueWorkerOptions options, int attempt)
-    {
-        // attempt is 1-based in our code after increment; use attempt as exponent
-        var seconds = (int)Math.Min(Math.Pow(2, attempt) * options.BaseBackoffSeconds, options.MaxBackoffSeconds);
-        return Math.Max(options.BaseBackoffSeconds, seconds);
     }
 }
