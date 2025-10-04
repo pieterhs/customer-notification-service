@@ -70,15 +70,11 @@ public class Startup
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
-        if (env.IsDevelopment())
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
         {
-            app.UseDeveloperExceptionPage();
-            app.UseSwagger();
-            app.UseSwaggerUI(c =>
-            {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Customer Notification Service API v1");
-            });
-        }
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Customer Notification Service API v1");
+        });
 
         app.UseMiddleware<ApiKeyMiddleware>();
 

@@ -41,6 +41,7 @@ public class NotificationsController : ControllerBase
         _logger.LogInformation("Querying notification history for customerId: {CustomerId}", customerId);
         var notifications = await _dbContext.Notifications
             .Where(n => n.CustomerId == customerId)
+            .Include(n => n.Id)
             .ToListAsync();
 
         if (notifications.Count == 0)
@@ -54,31 +55,29 @@ public class NotificationsController : ControllerBase
             .Where(a => notificationIds.Contains(a.NotificationId))
             .ToListAsync();
 
-        //var tz = TimeZoneInfo.FindSystemTimeZoneById("South Africa Standard Time");
+        var tz = TimeZoneInfo.FindSystemTimeZoneById("South Africa Standard Time");
         var result = notifications.Select(n => new Application.Dtos.NotificationHistoryDto
         {
             NotificationId = n.Id,
             TemplateKey = n.TemplateKey,
             Subject = n.Subject,
-            Status = n.Status.ToString(),
-            SendAt = n.SendAt,
-            //SendAt = n.SendAt.HasValue
-            //    ? TimeZoneInfo.ConvertTime(n.SendAt.Value, tz)
-            //    : (DateTimeOffset?)null,
+            Status = n.Status.ToString(),            
+            SendAt = n.SendAt.HasValue
+                ? TimeZoneInfo.ConvertTime(n.SendAt.Value, tz)
+                : (DateTimeOffset?)null,
             Attempts = attempts
                 .Where(a => a.NotificationId == n.Id)
                 .OrderBy(a => a.AttemptedAt)
                 .Select(a => new Application.Dtos.DeliveryAttemptDto
                 {
-                    Timestamp = a.AttemptedAt,
-                    //Timestamp = TimeZoneInfo.ConvertTime(a.AttemptedAt, tz),
+                    AttemptedAt = TimeZoneInfo.ConvertTime(a.AttemptedAt, tz),
                     Status = a.Status ?? (a.Success ? "Success" : "Failed"),
                     ErrorMessage = a.ErrorMessage
                 })
                 .ToList()
         }).ToList();
 
-        _logger.LogInformation("Returning {Count} notifications for customerId: {CustomerId}", result.Count, customerId);
-        return Ok(result);
+    _logger.LogInformation("Returning {Count} notifications for customerId: {CustomerId}", result.Count, customerId);
+    return Ok(result);
     }
 }

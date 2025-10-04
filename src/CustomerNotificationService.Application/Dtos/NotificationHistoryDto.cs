@@ -15,7 +15,7 @@ public class NotificationHistoryDto
 
 public class DeliveryAttemptDto
 {
-    public DateTimeOffset Timestamp { get; set; }
+    public DateTimeOffset AttemptedAt { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? ErrorMessage { get; set; }
 }

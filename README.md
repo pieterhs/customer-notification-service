@@ -123,6 +123,66 @@ dotnet test --verbosity minimal
 For local development without Docker, ensure you have PostgreSQL running and update the connection string in `appsettings.json`.
 
 ## Notes
-- Queue service is currently in-memory (for scaffolding).
-- EF Core model created, but migrations and database initialization are not included yet.
-- Docker setup uses PostgreSQL with credentials: user=notify, password=notify, database=notify.
+EF Core migrations are applied automatically on startup (configurable via `ApplyMigrations`).
+Docker setup uses PostgreSQL with credentials: user=notify, password=notify, database=notify.
+
+## Retry Policy Configuration
+
+The retry logic for failed notification deliveries is configurable via `RetryPolicy` section in `appsettings.json`:
+
+```
+"RetryPolicy": {
+	"MaxAttempts": 5,
+	"BaseBackoffSeconds": 30,
+	"MaxBackoffSeconds": 3600
+}
+```
+
+- **MaxAttempts**: Maximum number of delivery attempts before giving up
+- **BaseBackoffSeconds**: Initial backoff delay (seconds)
+- **MaxBackoffSeconds**: Maximum backoff delay (seconds)
+- Backoff formula: `min(2^attempt * BaseBackoffSeconds, MaxBackoffSeconds)`
+
+## SchedulerWorker
+
+The SchedulerWorker runs every 30 seconds and promotes scheduled notifications:
+
+- Finds notifications with `Status = Scheduled` and `SendAt <= now`
+- Skips notifications already in the queue
+- For each eligible notification:
+	- Adds a `NotificationQueueItem` (`NotificationId`, `ReadyAt=now`, `AttemptCount=0`, `Status='Queued'`)
+	- Updates `Notification.Status = Pending`
+- All changes are saved atomically in a single transaction
+- Logs which notifications were promoted
+
+## Notification History Endpoint
+
+`GET /api/notifications/{customerId}/history`
+
+Returns all notifications for a customer, including delivery attempts:
+
+**Example response:**
+```json
+[
+	{
+		"notificationId": "b1e2...",
+		"templateKey": "welcome",
+		"subject": "Welcome!",
+		"status": "Sent",
+		"sendAt": "2025-10-04T08:00:00+02:00",
+		"attempts": [
+			{
+				"attemptedAt": "2025-10-04T08:00:01+02:00",
+				"status": "Success",
+				"errorMessage": null
+			}
+		]
+	}
+]
+```
+
+Returns 404 if no notifications exist for the customer.
+
+## Swagger
+
+Swagger UI is always available at `/swagger` in all environments (including Production/Docker).
