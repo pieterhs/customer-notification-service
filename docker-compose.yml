@@ -6,7 +6,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Development
@@ -16,7 +17,7 @@ services:
       - ConnectionStrings__Default=Host=postgres;Port=5432;Database=notify;Username=notify;Password=notify
       - TZ=Africa/Johannesburg
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -29,7 +30,8 @@ services:
       context: .
       dockerfile: src/CustomerNotificationService.Workers/Dockerfile
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       - DOTNET_ENVIRONMENT=Development
       - POSTGRES_CONNECTION=Host=postgres;Port=5432;Database=notify;Username=notify;Password=notify

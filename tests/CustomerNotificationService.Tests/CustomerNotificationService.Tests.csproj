@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="FluentAssertions" Version="8.7.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.20" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.9" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Moq" Version="4.20.72" />
@@ -25,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\CustomerNotificationService.Api\CustomerNotificationService.Api.csproj" />
     <ProjectReference Include="..\..\src\CustomerNotificationService.Application\CustomerNotificationService.Application.csproj" />
     <ProjectReference Include="..\..\src\CustomerNotificationService.Domain\CustomerNotificationService.Domain.csproj" />
     <ProjectReference Include="..\..\src\CustomerNotificationService.Infrastructure\CustomerNotificationService.Infrastructure.csproj" />

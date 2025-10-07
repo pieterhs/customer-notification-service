@@ -48,7 +48,24 @@ public class Startup
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(c =>
         {
-            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Customer Notification Service API", Version = "v1" });
+            c.SwaggerDoc("v1", new OpenApiInfo 
+            { 
+                Title = "Customer Notification Service API", 
+                Version = "v1",
+                Description = "A REST API for managing customer notifications with support for multiple channels, templates, scheduling, and delivery tracking."
+            });
+            
+            // Include XML comments
+            var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+            var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+            if (File.Exists(xmlPath))
+            {
+                c.IncludeXmlComments(xmlPath);
+            }
+            
+            // Describe all parameters in camelCase
+            c.DescribeAllParametersInCamelCase();
+            
             c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
             {
                 Description = "API Key needed to access the endpoints. X-Api-Key: your-api-key",

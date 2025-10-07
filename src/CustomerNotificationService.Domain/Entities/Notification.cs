@@ -16,4 +16,5 @@ public class Notification
     public DateTimeOffset? SendAt { get; set; }
     public DateTimeOffset? SentAt { get; set; }
     public string? CustomerId { get; set; }
+    public string? IdempotencyKey { get; set; }
 }

@@ -1,3 +1,4 @@
+using CustomerNotificationService.Application.Interfaces;
 using CustomerNotificationService.Application.Services;
 using CustomerNotificationService.Domain.Entities;
 using CustomerNotificationService.Domain.Enums;
@@ -5,6 +6,7 @@ using CustomerNotificationService.Infrastructure.Data;
 using CustomerNotificationService.Infrastructure.Repositories;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
 namespace CustomerNotificationService.Tests;
 
@@ -34,7 +36,8 @@ public class IntegrationTests
 
         var notificationRepo = new NotificationRepository(context);
         var queueRepo = new QueueRepository(context);
-        var service = new NotificationService(notificationRepo, queueRepo);
+        var auditLogger = new Mock<IAuditLogger>();
+        var service = new NotificationService(notificationRepo, queueRepo, auditLogger.Object);
 
         // Act - Send a notification
         var request = new SendNotificationRequest(
@@ -48,23 +51,23 @@ public class IntegrationTests
             CustomerId: "customer123"
         );
 
-        var notificationId = await service.SendAsync(request);
+        var response = await service.SendAsync(request);
 
         // Assert - Verify notification was created
-        var notification = await context.Notifications.FirstAsync(n => n.Id == notificationId);
+        var notification = await context.Notifications.FirstAsync(n => n.Id == response.NotificationId);
         notification.Recipient.Should().Be("john@example.com");
         notification.TemplateKey.Should().Be("welcome");
         notification.Status.Should().Be(NotificationStatus.Pending);
 
         // Verify queue item was created
-        var queueItem = await context.NotificationQueue.FirstAsync(q => q.NotificationId == notificationId);
+        var queueItem = await context.NotificationQueue.FirstAsync(q => q.NotificationId == response.NotificationId);
     queueItem.JobStatus.Should().Be("Queued");
         queueItem.ReadyAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(10));
 
         // Simulate queue processing - dequeue item
         var dequeuedItem = await queueRepo.DequeueAsync();
         dequeuedItem.Should().NotBeNull();
-        dequeuedItem!.NotificationId.Should().Be(notificationId);
+        dequeuedItem!.NotificationId.Should().Be(response.NotificationId);
         dequeuedItem.JobStatus.Should().Be("Processing");
 
         // Complete the job
