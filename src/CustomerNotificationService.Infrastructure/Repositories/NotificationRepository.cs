@@ -37,4 +37,20 @@ public class NotificationRepository : INotificationRepository
             .Take(100)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IQueryable<Notification>> GetNotificationsByCustomerIdAsync(string customerId, CancellationToken cancellationToken = default)
+    {
+        await Task.CompletedTask; // To satisfy async signature while returning IQueryable
+        return _db.Notifications
+            .AsNoTracking()
+            .Where(n => n.CustomerId == customerId);
+    }
+
+    public async Task<List<DeliveryAttempt>> GetDeliveryAttemptsByNotificationIdsAsync(List<Guid> notificationIds, CancellationToken cancellationToken = default)
+    {
+        return await _db.DeliveryAttempts
+            .AsNoTracking()
+            .Where(a => notificationIds.Contains(a.NotificationId))
+            .ToListAsync(cancellationToken);
+    }
 }
