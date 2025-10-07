@@ -13,12 +13,13 @@ public record SendNotificationRequest(
     string? PayloadJson,
     ChannelType Channel,
     DateTimeOffset? SendAt = null,
-    string? CustomerId = null
+    string? CustomerId = null,
+    string? IdempotencyKey = null
 );
 
 public interface INotificationService
 {
-    Task<Guid> SendAsync(SendNotificationRequest request, CancellationToken cancellationToken = default);
+    Task<SendNotificationResponse> SendAsync(SendNotificationRequest request, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Retrieves paginated customer notification history with optional filters

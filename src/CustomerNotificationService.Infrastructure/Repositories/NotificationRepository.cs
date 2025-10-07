@@ -16,6 +16,9 @@ public class NotificationRepository : INotificationRepository
     public async Task<Notification?> GetAsync(Guid id, CancellationToken cancellationToken = default)
         => await _db.Notifications.AsNoTracking().FirstOrDefaultAsync(n => n.Id == id, cancellationToken);
 
+    public async Task<Notification?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+        => await _db.Notifications.AsNoTracking().FirstOrDefaultAsync(n => n.IdempotencyKey == idempotencyKey, cancellationToken);
+
     public async Task AddAsync(Notification notification, CancellationToken cancellationToken = default)
     {
         await _db.Notifications.AddAsync(notification, cancellationToken);

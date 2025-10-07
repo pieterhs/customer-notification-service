@@ -25,12 +25,23 @@ public class NotificationsController : ControllerBase
     }
 
     [HttpPost("send")]
-    public async Task<IActionResult> Send([FromBody] SendNotificationRequest request, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(SendNotificationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(SendNotificationResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Send(
+        [FromBody] SendNotificationRequest request, 
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var notificationId = await _notificationService.SendAsync(request, cancellationToken);
-            return Accepted(new { notificationId });
+            // Create request with idempotency key from header
+            var requestWithIdempotency = request with { IdempotencyKey = idempotencyKey };
+            
+            var response = await _notificationService.SendAsync(requestWithIdempotency, cancellationToken);
+            
+            // Return 200 OK for existing notifications (idempotent), 202 Accepted for new ones
+            return response.IsExisting ? Ok(response) : Accepted(response);
         }
         catch (ArgumentException ex)
         {

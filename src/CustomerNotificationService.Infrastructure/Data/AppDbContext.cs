@@ -45,6 +45,13 @@ public class AppDbContext : DbContext
             .HasDatabaseName("IX_Notifications_CustomerId_Status_CreatedAt")
             .IsDescending(false, false, true); // CustomerId ASC, Status ASC, CreatedAt DESC
 
+        // Idempotency key unique index (filtered for non-null values)
+        modelBuilder.Entity<Notification>()
+            .HasIndex(n => n.IdempotencyKey)
+            .HasDatabaseName("IX_Notifications_IdempotencyKey")
+            .IsUnique()
+            .HasFilter("\"IdempotencyKey\" IS NOT NULL"); // PostgreSQL syntax
+
         // Queue item configuration
         modelBuilder.Entity<NotificationQueueItem>()
             .ToTable("NotificationQueue");
