@@ -1,5 +1,6 @@
 using CustomerNotificationService.Application.Services;
-using CustomerNotificationService.Application.Dtos;
+using CustomerNotificationService.Application.DTOs;
+using CustomerNotificationService.Application.Common;
 using CustomerNotificationService.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using CustomerNotificationService.Domain.Enums;
@@ -70,6 +71,11 @@ public class NotificationsController : ControllerBase
             return BadRequest(new { error = "Customer ID is required" });
         }
 
+        if (!Guid.TryParse(customerId, out var customerGuid))
+        {
+            return BadRequest(new { error = "Customer ID must be a valid GUID" });
+        }
+
         if (page < 1)
         {
             return BadRequest(new { error = "Page must be greater than or equal to 1" });
@@ -92,7 +98,7 @@ public class NotificationsController : ControllerBase
 
             var request = new CustomerNotificationHistoryRequest
             {
-                CustomerId = customerId,
+                CustomerId = customerGuid,
                 Status = status,
                 From = from,
                 To = to,
@@ -109,7 +115,7 @@ public class NotificationsController : ControllerBase
             }
 
             _logger.LogInformation("Returning {Count} notifications (page {Page} of {TotalPages}) for customerId: {CustomerId}", 
-                result.Items.Count, result.CurrentPage, result.TotalPages, customerId);
+                result.Items.Count, result.Page, result.TotalPages, customerId);
 
             return Ok(result);
         }

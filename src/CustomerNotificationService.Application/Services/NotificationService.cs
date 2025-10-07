@@ -1,5 +1,6 @@
 using CustomerNotificationService.Application.Interfaces;
-using CustomerNotificationService.Application.Dtos;
+using CustomerNotificationService.Application.DTOs;
+using CustomerNotificationService.Application.Common;
 using CustomerNotificationService.Domain.Entities;
 using CustomerNotificationService.Domain.Enums;
 
@@ -103,7 +104,6 @@ public class NotificationService : INotificationService
 
         // Get total count for pagination
         var totalItems = query.Count();
-        var totalPages = (int)Math.Ceiling((double)totalItems / request.PageSize);
 
         // Apply pagination
         var notifications = query
@@ -117,36 +117,35 @@ public class NotificationService : INotificationService
         var attempts = await _notificationRepository.GetDeliveryAttemptsByNotificationIdsAsync(notificationIds, cancellationToken);
 
         // Map to DTOs
-        var items = notifications.Select(n => new CustomerNotificationHistoryItemDto
+        var items = notifications.Select(n => 
         {
-            NotificationId = n.Id,
-            TemplateKey = n.TemplateKey,
-            Subject = n.Subject,
-            Status = n.Status.ToString(),
-            SendAt = n.SendAt,
-            CreatedAt = n.CreatedAt,
-            Channel = n.Channel.ToString(),
-            Attempts = attempts
-                .Where(a => a.NotificationId == n.Id)
-                .OrderBy(a => a.AttemptedAt)
-                .Select(a => new DeliveryAttemptDto
-                {
-                    AttemptedAt = a.AttemptedAt,
-                    Status = a.Status ?? (a.Success ? "Success" : "Failed"),
-                    ErrorMessage = a.ErrorMessage
-                })
-                .ToList()
+            var notificationAttempts = attempts.Where(a => a.NotificationId == n.Id).ToList();
+            var lastFailedAttempt = notificationAttempts.Where(a => !a.Success).OrderByDescending(a => a.AttemptedAt).FirstOrDefault();
+            var lastSuccessfulAttempt = notificationAttempts.Where(a => a.Success).OrderByDescending(a => a.AttemptedAt).FirstOrDefault();
+
+            return new CustomerNotificationHistoryItemDto
+            {
+                NotificationId = n.Id,
+                CustomerId = request.CustomerId,
+                TemplateId = n.TemplateKey ?? string.Empty,
+                Channel = n.Channel.ToString(),
+                Status = n.Status.ToString(),
+                AttemptCount = notificationAttempts.Count,
+                LastError = lastFailedAttempt?.ErrorMessage,
+                CreatedAt = n.CreatedAt,
+                ScheduledAt = n.SendAt,
+                SentAt = lastSuccessfulAttempt?.AttemptedAt ?? n.SentAt,
+                FailedAt = n.Status == NotificationStatus.Failed ? lastFailedAttempt?.AttemptedAt : null,
+                RenderedPreview = !string.IsNullOrEmpty(n.Subject) && !string.IsNullOrEmpty(n.Body) 
+                    ? $"{n.Subject}: {(n.Body.Length > 100 ? n.Body.Substring(0, 100) + "..." : n.Body)}"
+                    : null
+            };
         }).ToList();
 
-        return new PagedResult<CustomerNotificationHistoryItemDto>
-        {
-            Items = items,
-            TotalItems = totalItems,
-            TotalPages = totalPages,
-            CurrentPage = request.Page,
-            PageSize = request.PageSize,
-            HasNext = request.Page < totalPages,
-            HasPrevious = request.Page > 1
-        };
+        return new PagedResult<CustomerNotificationHistoryItemDto>(
+            items, 
+            request.Page, 
+            request.PageSize, 
+            totalItems);
     }
 }

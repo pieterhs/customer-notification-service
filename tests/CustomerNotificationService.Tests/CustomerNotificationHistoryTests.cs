@@ -1,4 +1,5 @@
-using CustomerNotificationService.Application.Dtos;
+using CustomerNotificationService.Application.DTOs;
+using CustomerNotificationService.Application.Common;
 using CustomerNotificationService.Application.Interfaces;
 using CustomerNotificationService.Application.Services;
 using CustomerNotificationService.Domain.Entities;
@@ -24,13 +25,13 @@ public class CustomerNotificationHistoryTests
         using var context = new AppDbContext(options);
         
         // Add test notifications
-        var customerId = "test-customer-123";
+        var customerId = Guid.NewGuid();
         var notifications = new List<Notification>
         {
             new()
             {
                 Id = Guid.NewGuid(),
-                CustomerId = customerId,
+                CustomerId = customerId.ToString(),
                 Recipient = "test1@example.com",
                 Subject = "Test 1",
                 Body = "Body 1",
@@ -41,7 +42,7 @@ public class CustomerNotificationHistoryTests
             new()
             {
                 Id = Guid.NewGuid(),
-                CustomerId = customerId,
+                CustomerId = customerId.ToString(),
                 Recipient = "test2@example.com",
                 Subject = "Test 2",
                 Body = "Body 2",
@@ -52,7 +53,7 @@ public class CustomerNotificationHistoryTests
             new()
             {
                 Id = Guid.NewGuid(),
-                CustomerId = customerId,
+                CustomerId = customerId.ToString(),
                 Recipient = "test3@example.com",
                 Subject = "Test 3",
                 Body = "Body 3",
@@ -87,7 +88,7 @@ public class CustomerNotificationHistoryTests
         result.Items[0].Status.Should().Be("Sent");
         result.TotalItems.Should().Be(1);
         result.TotalPages.Should().Be(1);
-        result.CurrentPage.Should().Be(1);
+        result.Page.Should().Be(1);
         result.HasNext.Should().BeFalse();
         result.HasPrevious.Should().BeFalse();
     }
@@ -102,11 +103,11 @@ public class CustomerNotificationHistoryTests
 
         using var context = new AppDbContext(options);
         
-        var customerId = "test-customer-456";
+        var customerId = Guid.NewGuid();
         var notifications = Enumerable.Range(1, 25).Select(i => new Notification
         {
             Id = Guid.NewGuid(),
-            CustomerId = customerId,
+            CustomerId = customerId.ToString(),
             Recipient = $"test{i}@example.com",
             Subject = $"Test {i}",
             Body = $"Body {i}",
@@ -138,7 +139,7 @@ public class CustomerNotificationHistoryTests
         result.Items.Should().HaveCount(10);
         result.TotalItems.Should().Be(25);
         result.TotalPages.Should().Be(3);
-        result.CurrentPage.Should().Be(2);
+        result.Page.Should().Be(2);
         result.HasNext.Should().BeTrue();
         result.HasPrevious.Should().BeTrue();
     }
@@ -159,7 +160,7 @@ public class CustomerNotificationHistoryTests
 
         var request = new CustomerNotificationHistoryRequest
         {
-            CustomerId = "test-customer",
+            CustomerId = Guid.NewGuid(),
             Status = "InvalidStatus"
         };
 
