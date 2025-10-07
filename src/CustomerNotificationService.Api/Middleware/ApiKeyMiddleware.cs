@@ -13,9 +13,13 @@ public class ApiKeyMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Skip auth for health endpoint and swagger
+        // Skip auth for health endpoints and swagger
         var path = context.Request.Path.Value?.ToLower();
-        if (path == "/health" || path?.StartsWith("/swagger") == true || path?.StartsWith("/api-docs") == true)
+        if (path == "/health" || 
+            path == "/health/live" || 
+            path == "/health/ready" || 
+            path?.StartsWith("/swagger") == true || 
+            path?.StartsWith("/api-docs") == true)
         {
             await _next(context);
             return;

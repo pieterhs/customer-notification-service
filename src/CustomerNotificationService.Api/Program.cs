@@ -3,6 +3,7 @@ using CustomerNotificationService.Api;
 using CustomerNotificationService.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,5 +44,25 @@ else
 }
 
 startup.Configure(app, app.Environment);
+
+// Add health check endpoints
+app.MapGet("/health/live", [AllowAnonymous] () => Results.Text("Healthy"))
+    .WithName("HealthLive")
+    .WithOpenApi();
+
+app.MapGet("/health/ready", [AllowAnonymous] async (AppDbContext db) =>
+{
+    try
+    {
+        var canConnect = await db.Database.CanConnectAsync();
+        return canConnect ? Results.Text("Healthy") : Results.Text("Unhealthy");
+    }
+    catch
+    {
+        return Results.Text("Unhealthy");
+    }
+})
+.WithName("HealthReady")
+.WithOpenApi();
 
 app.Run();
