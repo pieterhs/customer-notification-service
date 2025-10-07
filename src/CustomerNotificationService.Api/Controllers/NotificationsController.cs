@@ -24,6 +24,40 @@ public class NotificationsController : ControllerBase
         _logger = logger;
     }
 
+    /// <summary>
+    /// Sends a notification to a recipient via the specified channel
+    /// </summary>
+    /// <param name="request">The notification request containing recipient, template, and channel information</param>
+    /// <param name="idempotencyKey">Optional idempotency key to prevent duplicate notifications</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The notification response with ID, status, and metadata</returns>
+    /// <remarks>
+    /// Sample request:
+    /// 
+    ///     POST /api/notifications/send
+    ///     Content-Type: application/json
+    ///     X-Api-Key: dev-api-key-12345
+    ///     Idempotency-Key: order-12345
+    ///     
+    ///     {
+    ///         "customerId": "11111111-2222-3333-4444-555555555555",
+    ///         "recipient": "user@example.com",
+    ///         "templateKey": "welcome",
+    ///         "channel": 0,
+    ///         "payloadJson": "{\"name\": \"John Doe\"}",
+    ///         "sendAt": "2025-10-07T18:00:00Z"
+    ///     }
+    ///     
+    /// Sample response (202 Accepted for new notification):
+    /// 
+    ///     {
+    ///         "notificationId": "12345678-1234-1234-1234-123456789abc",
+    ///         "status": "Scheduled",
+    ///         "scheduledAt": "2025-10-07T18:00:00Z",
+    ///         "idempotencyKey": "order-12345",
+    ///         "isExisting": false
+    ///     }
+    /// </remarks>
     [HttpPost("send")]
     [ProducesResponseType(typeof(SendNotificationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(SendNotificationResponse), StatusCodes.Status202Accepted)]
@@ -52,7 +86,7 @@ public class NotificationsController : ControllerBase
     /// <summary>
     /// Gets paginated notification history for a specific customer with optional filters
     /// </summary>
-    /// <param name="customerId">The customer ID to get notification history for</param>
+    /// <param name="customerId">The customer ID (GUID format) to get notification history for</param>
     /// <param name="status">Optional status filter (e.g., Pending, Sent, Failed, Scheduled)</param>
     /// <param name="from">Optional start date filter (ISO 8601 format)</param>
     /// <param name="to">Optional end date filter (ISO 8601 format)</param>
@@ -60,6 +94,39 @@ public class NotificationsController : ControllerBase
     /// <param name="pageSize">Page size (default: 20, range: 1-100)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Paginated list of customer notification history</returns>
+    /// <remarks>
+    /// Sample request:
+    /// 
+    ///     GET /api/notifications/customer/11111111-2222-3333-4444-555555555555/history?status=Sent&amp;page=1&amp;pageSize=20
+    ///     X-Api-Key: dev-api-key-12345
+    ///     
+    /// Sample response:
+    /// 
+    ///     {
+    ///         "items": [
+    ///             {
+    ///                 "notificationId": "12345678-1234-1234-1234-123456789abc",
+    ///                 "customerId": "11111111-2222-3333-4444-555555555555",
+    ///                 "templateId": "welcome",
+    ///                 "channel": "Email",
+    ///                 "status": "Sent",
+    ///                 "attemptCount": 1,
+    ///                 "lastError": null,
+    ///                 "createdAt": "2025-10-07T19:55:29.120748+00:00",
+    ///                 "scheduledAt": null,
+    ///                 "sentAt": "2025-10-07T19:55:30.866886+00:00",
+    ///                 "failedAt": null,
+    ///                 "renderedPreview": "Welcome John Doe!"
+    ///             }
+    ///         ],
+    ///         "page": 1,
+    ///         "pageSize": 20,
+    ///         "totalItems": 1,
+    ///         "totalPages": 1,
+    ///         "hasNext": false,
+    ///         "hasPrevious": false
+    ///     }
+    /// </remarks>
     /// <response code="200">Returns the paginated notification history</response>
     /// <response code="400">Invalid query parameters</response>
     /// <response code="404">Customer not found or no notifications found</response>

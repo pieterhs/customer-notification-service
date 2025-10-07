@@ -96,9 +96,86 @@ The API will be available at:
 
 ## API Endpoints
 
-- `GET /health` - Health check (no auth required)
-- `POST /api/notifications/send` - Send notification (requires X-Api-Key header)
-- `GET /swagger` - Swagger UI (Development only)
+### POST /api/notifications/send
+Send a notification to a recipient via the specified channel. Supports idempotency via `Idempotency-Key` header.
+
+**Example Request:**
+```bash
+curl -H "X-Api-Key: dev-api-key-12345" \
+     -H "Idempotency-Key: order-123" \
+     -H "Content-Type: application/json" \
+     -d '{
+         "customerId": "11111111-2222-3333-4444-555555555555",
+         "recipient": "user@example.com",
+         "templateKey": "welcome",
+         "channel": 0,
+         "payloadJson": "{\"name\": \"Pieter\"}",
+         "sendAt": "2025-10-07T18:00:00Z"
+     }' \
+     http://localhost:8080/api/notifications/send
+```
+
+**Example Response (202 Accepted):**
+```json
+{
+    "notificationId": "12345678-1234-1234-1234-123456789abc",
+    "status": "Scheduled",
+    "scheduledAt": "2025-10-07T18:00:00Z",
+    "idempotencyKey": "order-123",
+    "isExisting": false
+}
+```
+
+### GET /api/notifications/customer/{customerId}/history
+Get paginated notification history for a specific customer with optional filtering.
+
+**Example Request:**
+```bash
+curl -H "X-Api-Key: dev-api-key-12345" \
+     "http://localhost:8080/api/notifications/customer/11111111-2222-3333-4444-555555555555/history?status=Sent&page=1&pageSize=20"
+```
+
+**Example Response:**
+```json
+{
+    "items": [
+        {
+            "notificationId": "12345678-1234-1234-1234-123456789abc",
+            "customerId": "11111111-2222-3333-4444-555555555555",
+            "templateId": "welcome",
+            "channel": "Email",
+            "status": "Sent",
+            "attemptCount": 1,
+            "lastError": null,
+            "createdAt": "2025-10-07T19:55:29.120748+00:00",
+            "scheduledAt": null,
+            "sentAt": "2025-10-07T19:55:30.866886+00:00",
+            "failedAt": null,
+            "renderedPreview": "Welcome Pieter!"
+        }
+    ],
+    "page": 1,
+    "pageSize": 20,
+    "totalItems": 1,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrevious": false
+}
+```
+
+**Query Parameters:**
+- `status` - Filter by notification status (Pending, Sent, Failed, Scheduled)
+- `from` - Start date filter (ISO 8601 format)
+- `to` - End date filter (ISO 8601 format)
+- `page` - Page number (default: 1, minimum: 1)
+- `pageSize` - Page size (default: 20, range: 1-100)
+
+### Health Endpoints
+- `GET /health/live` - Basic liveness check (no auth required)
+- `GET /health/ready` - Readiness check with database connectivity (no auth required)
+
+### Documentation
+- `GET /swagger` - Interactive Swagger UI documentation
 
 **API Key:** Use `X-Api-Key: dev-api-key-12345` header for authenticated endpoints.
 
@@ -186,3 +263,84 @@ Returns 404 if no notifications exist for the customer.
 ## Swagger
 
 Swagger UI is always available at `/swagger` in all environments (including Production/Docker).
+
+## Quickstart
+
+### 1. Start the complete system with Docker
+```bash
+docker-compose up --build
+```
+
+This will start:
+- PostgreSQL database on port 5432
+- API service on port 8080
+- Background workers for processing notifications
+- Automatic database migrations
+
+### 2. Explore the API documentation
+Open your browser to:
+- **Swagger UI**: http://localhost:8080/swagger
+- **Health Check**: http://localhost:8080/health/ready
+
+### 3. Test the API with curl
+
+**Send a notification:**
+```bash
+curl -H "X-Api-Key: dev-api-key-12345" \
+     -H "Idempotency-Key: order-123" \
+     -H "Content-Type: application/json" \
+     -d '{
+         "customerId": "11111111-2222-3333-4444-555555555555",
+         "recipient": "user@example.com", 
+         "templateKey": "welcome",
+         "channel": 0,
+         "payloadJson": "{\"name\": \"Pieter\"}",
+         "sendAt": null
+     }' \
+     http://localhost:8080/api/notifications/send
+```
+
+**Get notification history:**
+```bash
+curl -H "X-Api-Key: dev-api-key-12345" \
+     "http://localhost:8080/api/notifications/customer/11111111-2222-3333-4444-555555555555/history"
+```
+
+**Test idempotency (run the send command again with same Idempotency-Key):**
+```bash
+# This will return 200 OK with isExisting: true
+curl -H "X-Api-Key: dev-api-key-12345" \
+     -H "Idempotency-Key: order-123" \
+     -H "Content-Type: application/json" \
+     -d '{
+         "customerId": "11111111-2222-3333-4444-555555555555",
+         "recipient": "user@example.com",
+         "templateKey": "welcome", 
+         "channel": 0,
+         "payloadJson": "{\"name\": \"Pieter\"}"
+     }' \
+     http://localhost:8080/api/notifications/send
+```
+
+### 4. Monitor the system
+```bash
+# View API logs
+docker-compose logs -f api
+
+# View worker logs
+docker-compose logs -f workers
+
+# Check container health
+docker-compose ps
+```
+
+### 5. Clean up
+```bash
+# Stop services
+docker-compose down
+
+# Stop and remove database volumes
+docker-compose down -v
+```
+
+That's it! You now have a fully functional notification service with idempotency, pagination, health checks, and comprehensive API documentation. 🚀

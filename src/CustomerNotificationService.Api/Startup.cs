@@ -63,6 +63,9 @@ public class Startup
                 c.IncludeXmlComments(xmlPath);
             }
             
+            // Describe all parameters in camelCase
+            c.DescribeAllParametersInCamelCase();
+            
             c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
             {
                 Description = "API Key needed to access the endpoints. X-Api-Key: your-api-key",
