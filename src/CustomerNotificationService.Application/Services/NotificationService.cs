@@ -75,77 +75,7 @@ public class NotificationService : INotificationService
 
     public async Task<PagedResult<CustomerNotificationHistoryItemDto>> GetCustomerNotificationHistoryAsync(CustomerNotificationHistoryRequest request, CancellationToken cancellationToken = default)
     {
-        // Get notifications with filters applied
-        var query = await _notificationRepository.GetNotificationsByCustomerIdAsync(request.CustomerId, cancellationToken);
-        
-        // Apply status filter if provided
-        if (!string.IsNullOrWhiteSpace(request.Status))
-        {
-            if (Enum.TryParse<NotificationStatus>(request.Status, true, out var statusEnum))
-            {
-                query = query.Where(n => n.Status == statusEnum);
-            }
-            else
-            {
-                throw new ArgumentException($"Invalid status value: {request.Status}");
-            }
-        }
-
-        // Apply date range filters
-        if (request.From.HasValue)
-        {
-            query = query.Where(n => n.CreatedAt >= request.From.Value);
-        }
-
-        if (request.To.HasValue)
-        {
-            query = query.Where(n => n.CreatedAt <= request.To.Value);
-        }
-
-        // Get total count for pagination
-        var totalItems = query.Count();
-
-        // Apply pagination
-        var notifications = query
-            .OrderByDescending(n => n.CreatedAt)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .ToList();
-
-        // Get delivery attempts for the notifications
-        var notificationIds = notifications.Select(n => n.Id).ToList();
-        var attempts = await _notificationRepository.GetDeliveryAttemptsByNotificationIdsAsync(notificationIds, cancellationToken);
-
-        // Map to DTOs
-        var items = notifications.Select(n => 
-        {
-            var notificationAttempts = attempts.Where(a => a.NotificationId == n.Id).ToList();
-            var lastFailedAttempt = notificationAttempts.Where(a => !a.Success).OrderByDescending(a => a.AttemptedAt).FirstOrDefault();
-            var lastSuccessfulAttempt = notificationAttempts.Where(a => a.Success).OrderByDescending(a => a.AttemptedAt).FirstOrDefault();
-
-            return new CustomerNotificationHistoryItemDto
-            {
-                NotificationId = n.Id,
-                CustomerId = request.CustomerId,
-                TemplateId = n.TemplateKey ?? string.Empty,
-                Channel = n.Channel.ToString(),
-                Status = n.Status.ToString(),
-                AttemptCount = notificationAttempts.Count,
-                LastError = lastFailedAttempt?.ErrorMessage,
-                CreatedAt = n.CreatedAt,
-                ScheduledAt = n.SendAt,
-                SentAt = lastSuccessfulAttempt?.AttemptedAt ?? n.SentAt,
-                FailedAt = n.Status == NotificationStatus.Failed ? lastFailedAttempt?.AttemptedAt : null,
-                RenderedPreview = !string.IsNullOrEmpty(n.Subject) && !string.IsNullOrEmpty(n.Body) 
-                    ? $"{n.Subject}: {(n.Body.Length > 100 ? n.Body.Substring(0, 100) + "..." : n.Body)}"
-                    : null
-            };
-        }).ToList();
-
-        return new PagedResult<CustomerNotificationHistoryItemDto>(
-            items, 
-            request.Page, 
-            request.PageSize, 
-            totalItems);
+        // Delegate to repository for optimized EF query
+        return await _notificationRepository.GetCustomerNotificationHistoryAsync(request, cancellationToken);
     }
 }

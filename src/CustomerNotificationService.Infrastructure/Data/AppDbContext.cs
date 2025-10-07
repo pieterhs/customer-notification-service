@@ -34,6 +34,17 @@ public class AppDbContext : DbContext
             .Property(e => e.Channel)
             .HasConversion<string>();
 
+        // Notification indexes for optimal history query performance
+        modelBuilder.Entity<Notification>()
+            .HasIndex(n => new { n.CustomerId, n.CreatedAt })
+            .HasDatabaseName("IX_Notifications_CustomerId_CreatedAt")
+            .IsDescending(false, true); // CustomerId ASC, CreatedAt DESC
+
+        modelBuilder.Entity<Notification>()
+            .HasIndex(n => new { n.CustomerId, n.Status, n.CreatedAt })
+            .HasDatabaseName("IX_Notifications_CustomerId_Status_CreatedAt")
+            .IsDescending(false, false, true); // CustomerId ASC, Status ASC, CreatedAt DESC
+
         // Queue item configuration
         modelBuilder.Entity<NotificationQueueItem>()
             .ToTable("NotificationQueue");
