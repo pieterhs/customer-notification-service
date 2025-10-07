@@ -1,3 +1,4 @@
+using CustomerNotificationService.Application.Interfaces;
 using CustomerNotificationService.Application.Services;
 using CustomerNotificationService.Domain.Entities;
 using CustomerNotificationService.Domain.Enums;
@@ -5,6 +6,7 @@ using CustomerNotificationService.Infrastructure.Data;
 using CustomerNotificationService.Infrastructure.Repositories;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
 namespace CustomerNotificationService.Tests;
 
@@ -34,7 +36,8 @@ public class IntegrationTests
 
         var notificationRepo = new NotificationRepository(context);
         var queueRepo = new QueueRepository(context);
-        var service = new NotificationService(notificationRepo, queueRepo);
+        var auditLogger = new Mock<IAuditLogger>();
+        var service = new NotificationService(notificationRepo, queueRepo, auditLogger.Object);
 
         // Act - Send a notification
         var request = new SendNotificationRequest(

@@ -22,8 +22,9 @@ public class NotificationServiceTests
         using var context = new AppDbContext(options);
         var notificationRepo = new CustomerNotificationService.Infrastructure.Repositories.NotificationRepository(context);
         var queueRepo = new Mock<IQueueRepository>();
+        var auditLogger = new Mock<IAuditLogger>();
         
-        var service = new NotificationService(notificationRepo, queueRepo.Object);
+        var service = new NotificationService(notificationRepo, queueRepo.Object, auditLogger.Object);
 
         var request = new SendNotificationRequest(
             Recipient: "test@example.com",
@@ -53,8 +54,9 @@ public class NotificationServiceTests
         using var context = new AppDbContext(options);
         var notificationRepo = new CustomerNotificationService.Infrastructure.Repositories.NotificationRepository(context);
         var queueRepo = new Mock<IQueueRepository>();
+        var auditLogger = new Mock<IAuditLogger>();
         
-        var service = new NotificationService(notificationRepo, queueRepo.Object);
+        var service = new NotificationService(notificationRepo, queueRepo.Object, auditLogger.Object);
 
     var sendAt = DateTimeOffset.UtcNow.AddHours(1);
         var request = new SendNotificationRequest(
