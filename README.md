@@ -174,6 +174,86 @@ curl -H "X-Api-Key: dev-api-key-12345" \
 - `GET /health/live` - Basic liveness check (no auth required)
 - `GET /health/ready` - Readiness check with database connectivity (no auth required)
 
+## Admin Endpoints
+
+Template management endpoints allow internal admins to create, update, and remove notification templates dynamically. This enables flexible, data-driven message customization without redeploying the service.
+
+### GET /api/admin/templates
+Returns all notification templates.
+
+```bash
+curl -H "X-Api-Key: dev-api-key-12345" \
+     http://localhost:8080/api/admin/templates
+```
+
+**Example Response (200 OK):**
+```json
+[
+    {
+        "id": "12345678-1234-1234-1234-123456789abc",
+        "name": "WelcomeEmail",
+        "channel": "Email",
+        "content": "Hello {{name}}, welcome to our service!",
+        "createdAt": "2025-10-08T10:00:00Z",
+        "updatedAt": "2025-10-08T11:00:00Z"
+    }
+]
+```
+
+### GET /api/admin/templates/{id}
+Get a specific notification template by ID.
+
+```bash
+curl -H "X-Api-Key: dev-api-key-12345" \
+     http://localhost:8080/api/admin/templates/12345678-1234-1234-1234-123456789abc
+```
+
+### POST /api/admin/templates
+Create a new notification template.
+
+```bash
+curl -X POST -H "X-Api-Key: dev-api-key-12345" \
+     -H "Content-Type: application/json" \
+     -d '{
+         "name": "WelcomeEmail",
+         "channel": "Email", 
+         "content": "Hello {{name}}, welcome to our service!"
+     }' \
+     http://localhost:8080/api/admin/templates
+```
+
+**Example Response (201 Created):**
+```json
+"12345678-1234-1234-1234-123456789abc"
+```
+
+### PUT /api/admin/templates/{id}
+Update an existing notification template.
+
+```bash
+curl -X PUT -H "X-Api-Key: dev-api-key-12345" \
+     -H "Content-Type: application/json" \
+     -d '{
+         "name": "WelcomeEmailUpdated",
+         "channel": "Email",
+         "content": "Hi {{name}}, welcome to our updated service!"
+     }' \
+     http://localhost:8080/api/admin/templates/12345678-1234-1234-1234-123456789abc
+```
+
+### DELETE /api/admin/templates/{id}
+Delete a notification template.
+
+```bash
+curl -X DELETE -H "X-Api-Key: dev-api-key-12345" \
+     http://localhost:8080/api/admin/templates/12345678-1234-1234-1234-123456789abc
+```
+
+**Template Fields:**
+- `name` - Unique template identifier used when sending notifications
+- `channel` - Notification channel (Email, SMS, Push)
+- `content` - Template content with Scriban placeholders (e.g., `{{name}}`, `{{orderId}}`)
+
 ### Documentation
 - `GET /swagger` - Interactive Swagger UI documentation
 
@@ -186,6 +266,9 @@ curl -H "X-Api-Key: dev-api-key-12345" \
 - ✅ End-to-end workflow (send → queue → process)
 - ✅ Queue retry logic with exponential backoff
 - ✅ Database transaction handling
+- ✅ Admin template CRUD operations
+- ✅ Controller validation and error handling
+- ✅ Notification history filtering and pagination
 
 ## Run Tests
 
@@ -193,7 +276,7 @@ curl -H "X-Api-Key: dev-api-key-12345" \
 dotnet test --verbosity minimal
 ```
 
-**Current: 6/6 tests passing**
+**Current: 45/45 tests passing**
 
 ## Standalone Development
 
