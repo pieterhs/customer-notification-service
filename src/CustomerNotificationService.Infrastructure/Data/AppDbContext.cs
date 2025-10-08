@@ -10,7 +10,7 @@ public class AppDbContext : DbContext
     {
     }
 
-    public DbSet<Template> Templates => Set<Template>();
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationQueueItem> NotificationQueue => Set<NotificationQueueItem>();
     public DbSet<DeliveryAttempt> DeliveryAttempts => Set<DeliveryAttempt>();
@@ -20,10 +20,13 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Template configuration
-        modelBuilder.Entity<Template>()
-            .HasIndex(t => t.Key)
-            .IsUnique();
+        // Legacy Template entity removed
+
+        // NotificationTemplate configuration
+        modelBuilder.Entity<NotificationTemplate>()
+            .ToTable("NotificationTemplates");
+        modelBuilder.Entity<NotificationTemplate>()
+            .HasIndex(t => new { t.Name, t.Channel });
 
         // Notification configuration
         modelBuilder.Entity<Notification>()
