@@ -254,38 +254,38 @@ public class QueueWorker : BackgroundService
     {
         if (string.IsNullOrEmpty(notification.TemplateKey)) return;
 
-        var template = await dbContext.Templates
+        // Try to resolve NotificationTemplate by Name (TemplateKey) and Channel
+        var channel = notification.Channel.ToString();
+        var template = await dbContext.NotificationTemplates
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Key == notification.TemplateKey, cancellationToken);
+            .FirstOrDefaultAsync(t => t.Name == notification.TemplateKey && t.Channel == channel, cancellationToken);
 
         if (template == null)
         {
-            _logger.LogWarning("Template {TemplateKey} not found for notification {NotificationId}", 
-                notification.TemplateKey, notification.Id);
+            _logger.LogWarning("NotificationTemplate {TemplateKey}/{Channel} not found for notification {NotificationId}", 
+                notification.TemplateKey, channel, notification.Id);
             return;
         }
 
         try
         {
-            var payload = string.IsNullOrEmpty(notification.PayloadJson) 
-                ? new { } 
+            var payload = string.IsNullOrEmpty(notification.PayloadJson)
+                ? new { }
                 : System.Text.Json.JsonSerializer.Deserialize<object>(notification.PayloadJson);
 
-            var subjectTemplate = Scriban.Template.Parse(template.Subject);
-            var bodyTemplate = Scriban.Template.Parse(template.Body);
-
-            notification.Subject = await subjectTemplate.RenderAsync(payload);
+            // Render single-content template as the Body; keep Subject if already provided
+            var bodyTemplate = Scriban.Template.Parse(template.Content);
             notification.Body = await bodyTemplate.RenderAsync(payload);
             
-            _logger.LogDebug("Template {TemplateKey} rendered successfully for notification {NotificationId}", 
-                notification.TemplateKey, notification.Id);
+            _logger.LogDebug("NotificationTemplate {TemplateKey}/{Channel} rendered successfully for notification {NotificationId}", 
+                notification.TemplateKey, channel, notification.Id);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error rendering template {TemplateKey} for notification {NotificationId}", 
-                notification.TemplateKey, notification.Id);
-            notification.Subject = template.Subject;
-            notification.Body = template.Body;
+            _logger.LogError(ex, "Error rendering NotificationTemplate {TemplateKey}/{Channel} for notification {NotificationId}", 
+                notification.TemplateKey, channel, notification.Id);
+            // Fallback to raw content
+            notification.Body = template.Content;
         }
     }
 }

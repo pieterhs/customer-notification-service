@@ -22,17 +22,8 @@ public class IntegrationTests
 
         using var context = new AppDbContext(options);
         
-        // Add a sample template
-        var template = new CustomerNotificationService.Domain.Entities.Template
-        {
-            Id = Guid.NewGuid(),
-            Key = "welcome",
-            Subject = "Welcome {{name}}!",
-            Body = "Hello {{name}}, welcome to our service!",
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-        context.Templates.Add(template);
-        await context.SaveChangesAsync();
+        // Note: Legacy Template entity removed. Notification rendering happens in workers
+        // against NotificationTemplates; this test focuses on NotificationService enqueueing.
 
         var notificationRepo = new NotificationRepository(context);
         var queueRepo = new QueueRepository(context);

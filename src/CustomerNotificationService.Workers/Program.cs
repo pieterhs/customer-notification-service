@@ -19,7 +19,6 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connect
 
 // Repositories
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
-builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
 builder.Services.AddScoped<IQueueRepository, QueueRepository>();
 
 // Providers

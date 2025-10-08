@@ -178,24 +178,26 @@ namespace CustomerNotificationService.Infrastructure.Migrations
                     b.ToTable("NotificationQueue", (string)null);
                 });
 
-            modelBuilder.Entity("CustomerNotificationService.Domain.Entities.Template", b =>
+            // Legacy Template entity removed
+
+            modelBuilder.Entity("CustomerNotificationService.Domain.Entities.NotificationTemplate", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Body")
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Subject")
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -204,10 +206,9 @@ namespace CustomerNotificationService.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Key")
-                        .IsUnique();
+                    b.HasIndex("Name", "Channel");
 
-                    b.ToTable("Templates");
+                    b.ToTable("NotificationTemplates", (string)null);
                 });
 #pragma warning restore 612, 618
         }

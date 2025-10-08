@@ -32,10 +32,13 @@ public class Startup
 
     // Application services
     services.AddScoped<INotificationService, NotificationService>();
+    services.AddScoped<ITemplateService, TemplateService>();
     services.AddScoped<Application.Interfaces.IAuditLogger, Infrastructure.Services.AuditLogger>();
 
         // Repositories
-        services.AddScoped<ITemplateRepository, TemplateRepository>();
+    // Repository for admin-driven template management
+    services.AddScoped<CustomerNotificationService.Application.Interfaces.INotificationTemplateRepository, NotificationTemplateRepository>();
+    services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IQueueRepository, QueueRepository>();
 
